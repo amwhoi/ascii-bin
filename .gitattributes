@@ -1,0 +1,4 @@
+# The art files are byte-sensitive: trailing spaces, braille blanks and the
+# original line endings all matter to the parsers. Keep every file exactly as
+# committed, so git never rewrites CRLF to LF on checkout or commit.
+* -text

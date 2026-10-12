@@ -1,0 +1,5 @@
+# local tooling and OS cruft, not part of the project
+.claude/
+desktop.ini
+Thumbs.db
+.DS_Store

@@ -1,0 +1,1419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ASCII Paste Builder + Helper — Overlay B</title>
+<style>
+  :root{
+    --bg:#1f1e1d; --bg2:#262421; --bg3:#2e2b27; --bg4:#383530;
+    --fg:#e6e1d6; --fg-dim:#a8a097; --fg-faint:#6f685f;
+    --border:#3a3733; --border2:#4a463f;
+    --accent:#d97757; --accent-dim:#b65f44; --accent-soft:#3a2b24;
+    --good:#7fae6e;
+    --mono:"Cascadia Mono","Cascadia Code",Consolas,Menlo,"DejaVu Sans Mono",monospace;
+    --c-opening:#d9a24f; --c-text:#6fa8c7; --c-art:#c77fb0; --c-ending:#7fae6e; --c-untyped:#8a857c;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0; background:var(--bg); color:var(--fg); font-family:var(--mono); font-size:13px;
+       line-height:1.45; display:flex; flex-direction:column}
+  header{display:flex; align-items:center; gap:14px; padding:10px 16px; border-bottom:1px solid var(--border); background:var(--bg2)}
+  header .dot{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent-dim)}
+  header h1{font-size:13px;font-weight:600;margin:0;letter-spacing:.3px}
+  header .sub{color:var(--fg-faint);font-size:11.5px}
+  header .spacer{flex:1}
+  header .io{font-size:11px;color:var(--fg-dim); margin-right:6px}
+  /* top-level app tabs */
+  .apptabs{display:flex; gap:2px; align-self:stretch; align-items:stretch; margin-left:2px}
+  .apptab{font-family:var(--mono); font-size:12.5px; color:var(--fg-dim); background:transparent;
+          border:0; border-bottom:2px solid transparent; border-radius:0; padding:7px 13px; cursor:pointer; transition:.12s}
+  .apptab:hover{color:var(--fg); background:transparent}
+  .apptab.active{color:#fff; border-bottom-color:var(--accent)}
+  .viewport{flex:1; display:flex; min-height:0}
+  .view{flex:1; min-width:0; min-height:0; display:none}
+  .view.active{display:flex}
+  #view-helper iframe{flex:1; width:100%; height:100%; border:0; display:block; background:var(--bg)}
+  button{font-family:var(--mono); font-size:12px; color:var(--fg); background:var(--bg3);
+         border:1px solid var(--border2); border-radius:6px; padding:6px 10px; cursor:pointer; transition:.12s; white-space:nowrap}
+  button:hover{border-color:var(--accent-dim); color:#fff; background:var(--bg4)}
+  button:active{transform:translateY(1px)}
+  button.primary{background:var(--accent); border-color:var(--accent); color:#1b1410; font-weight:600}
+  button.primary:hover{background:#e88a6b}
+  button.ghost{background:transparent}
+  button.sm{padding:3px 7px; font-size:11px}
+  .cols{flex:1; display:flex; min-height:0}
+  .col{display:flex; flex-direction:column; min-width:0; min-height:0}
+  .palette{width:360px; min-width:300px; border-right:1px solid var(--border); background:var(--bg2)}
+  .seq{width:340px; min-width:280px; border-right:1px solid var(--border); background:var(--bg2)}
+  .preview{flex:1}
+  .colhead{display:flex; align-items:center; gap:8px; padding:9px 12px; border-bottom:1px solid var(--border); font-weight:600; font-size:12px}
+  .colhead .spacer{flex:1}
+  .colbody{flex:1; overflow:auto; padding:10px 12px; display:flex; flex-direction:column; gap:8px}
+  .tabs{display:flex; gap:4px; padding:8px 12px 0 12px; flex-wrap:wrap}
+  .tab{padding:4px 9px; border:1px solid var(--border2); border-radius:20px; cursor:pointer; font-size:11px; color:var(--fg-dim); background:var(--bg)}
+  .tab:hover{border-color:var(--accent-dim)}
+  .tab.active{color:#1b1410; background:var(--accent); border-color:var(--accent); font-weight:600}
+  .tab .cnt{opacity:.7}
+  .card{border:1px solid var(--border); border-radius:7px; background:var(--bg); overflow:hidden}
+  .card .chead{display:flex; align-items:center; gap:8px; padding:5px 9px; border-bottom:1px solid var(--border); background:var(--bg3)}
+  .card .chead .ty{font-size:10px; text-transform:uppercase; letter-spacing:.4px; font-weight:700}
+  .card .chead .spacer{flex:1}
+  .card pre{margin:0; padding:8px 9px; font-size:10.5px; line-height:1.25; white-space:pre; overflow:auto; max-height:120px; color:var(--fg-dim)}
+  .ty.opening{color:var(--c-opening)} .ty.text{color:var(--c-text)} .ty.art{color:var(--c-art)}
+  .ty.ending{color:var(--c-ending)} .ty.untyped{color:var(--c-untyped)}
+  .dotty{width:8px;height:8px;border-radius:2px;flex:none}
+  .dotty.opening{background:var(--c-opening)} .dotty.text{background:var(--c-text)} .dotty.art{background:var(--c-art)}
+  .dotty.ending{background:var(--c-ending)} .dotty.untyped{background:var(--c-untyped)}
+  /* sequence item */
+  .seqitem{border:1px solid var(--border); border-radius:7px; background:var(--bg); overflow:hidden}
+  .seqitem.dragging{opacity:.4}
+  .seqitem.over{border-color:var(--accent)}
+  .seqitem .shead{display:flex; align-items:center; gap:7px; padding:5px 8px; background:var(--bg3); cursor:grab}
+  .seqitem .shead .grip{color:var(--fg-faint); cursor:grab}
+  .seqitem .shead .idx{color:var(--fg-faint); font-size:11px; min-width:18px}
+  .seqitem .shead .spacer{flex:1}
+  .seqitem pre{margin:0; padding:6px 8px; font-size:10px; line-height:1.2; white-space:pre; overflow:auto; max-height:74px; color:var(--fg-faint)}
+  .empty{color:var(--fg-faint); font-size:11.5px; padding:8px 2px; line-height:1.5}
+  .ctrls{display:flex; align-items:center; gap:8px; padding:8px 12px; border-top:1px solid var(--border); flex-wrap:wrap}
+  .ctrls label{font-size:11px; color:var(--fg-dim); display:flex; align-items:center; gap:6px}
+  input[type=number]{font-family:var(--mono); font-size:12px; color:var(--fg); background:var(--bg);
+                     border:1px solid var(--border2); border-radius:6px; padding:4px 6px; width:54px}
+  pre#out{flex:1; margin:0; padding:14px; white-space:pre; overflow:auto; font-size:12.5px; line-height:1.35;
+          background:#1a1917; color:var(--fg); tab-size:8; -moz-tab-size:8}
+  .toast{position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:var(--bg4);
+         border:1px solid var(--border2); color:var(--fg); padding:8px 14px; border-radius:7px;
+         font-size:12px; z-index:80; opacity:0; transition:.25s; pointer-events:none}
+  .toast.show{opacity:1}
+  .toast.good{border-color:var(--good)} .toast.bad{border-color:var(--accent)}
+  ::-webkit-scrollbar{width:11px;height:11px}
+  ::-webkit-scrollbar-thumb{background:#3a3733;border-radius:6px;border:2px solid var(--bg)}
+  ::-webkit-scrollbar-track{background:transparent}
+</style>
+</head>
+<body>
+<header>
+  <span class="dot"></span>
+  <nav class="apptabs">
+    <button class="apptab active" data-view="builder">ASCII&nbsp;Paste&nbsp;Builder</button>
+    <button class="apptab" data-view="helper">ASCII&nbsp;Helper</button>
+  </nav>
+  <span class="spacer"></span>
+  <span class="io" id="ioMode"></span>
+  <button id="loadLib">Load library…</button>
+  <button class="primary sm" id="saveFromHelper" style="display:none" title="Save the edited block back into the sequence and palette">Save ▸ sequence</button>
+</header>
+
+<div class="viewport">
+ <div id="view-builder" class="view active">
+<div class="cols">
+  <!-- PALETTE -->
+  <div class="col palette">
+    <div class="colhead"><span>Palette</span><span class="spacer"></span><span class="sub" id="palCount">0 blocks</span></div>
+    <div class="tabs" id="tabs"></div>
+    <div class="colbody" id="palBody"></div>
+  </div>
+
+  <!-- SEQUENCE -->
+  <div class="col seq">
+    <div class="colhead">
+      <span>Sequence</span><span class="spacer"></span>
+      <button class="ghost sm" id="clearSeq">Clear</button>
+    </div>
+    <div class="colbody" id="seqBody"></div>
+    <div class="ctrls">
+      <label>Blank lines between
+        <input type="number" id="gap" value="1" min="0" max="12">
+      </label>
+    </div>
+  </div>
+
+  <!-- PREVIEW -->
+  <div class="col preview">
+    <div class="colhead">
+      <span>Combined paste</span><span class="spacer"></span>
+      <span class="sub" id="outMeta">0 lines</span>
+      <button class="sm" id="copyOut">Copy</button>
+      <button class="primary sm" id="saveOut">Save…</button>
+    </div>
+    <pre id="out"></pre>
+  </div>
+</div>
+ </div><!-- /#view-builder -->
+ <div id="view-helper" class="view">
+  <iframe id="helperFrame" title="ASCII Helper"></iframe>
+ </div>
+</div><!-- /.viewport -->
+
+<!-- ===== embedded ASCII Helper (runs isolated inside the iframe via srcdoc) ===== -->
+<template id="helperTpl">
+<style>
+  :root{
+    --bg:#1f1e1d; --bg2:#262421; --bg3:#2e2b27; --bg4:#383530;
+    --fg:#e6e1d6; --fg-dim:#a8a097; --fg-faint:#6f685f;
+    --border:#3a3733; --border2:#4a463f;
+    --accent:#d97757; --accent-dim:#b65f44; --accent-soft:#3a2b24;
+    --good:#7fae6e; --warn:#d9a24f;
+    --mono:"Cascadia Mono","Cascadia Code",Consolas,Menlo,"DejaVu Sans Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:var(--mono); font-size:13px; line-height:1.45;
+    display:flex; flex-direction:column;
+  }
+  header{
+    display:flex; align-items:center; gap:14px; padding:10px 16px;
+    border-bottom:1px solid var(--border); background:var(--bg2);
+  }
+  header .dot{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent-dim)}
+  header h1{font-size:13px;font-weight:600;margin:0;letter-spacing:.3px}
+  header .sub{color:var(--fg-faint);font-size:11.5px}
+  header .spacer{flex:1}
+  header .io{font-size:11px;color:var(--fg-dim)}
+  .layout{flex:1; display:flex; min-height:0}
+  .sidebar{
+    width:340px; min-width:340px; overflow-y:auto; padding:12px;
+    border-right:1px solid var(--border); background:var(--bg2);
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .main{flex:1; display:flex; flex-direction:column; min-width:0; padding:12px; gap:8px}
+  .group{border:1px solid var(--border); border-radius:7px; background:var(--bg);}
+  .group > .ghead{
+    display:flex; align-items:center; gap:8px; padding:8px 10px; cursor:pointer;
+    user-select:none; font-weight:600; font-size:12px;
+  }
+  .group > .ghead .num{
+    width:18px;height:18px;border-radius:4px;background:var(--accent-soft);color:var(--accent);
+    display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex:none;
+  }
+  .group > .ghead .chev{margin-left:auto;color:var(--fg-faint);transition:transform .15s}
+  .group.collapsed > .ghead .chev{transform:rotate(-90deg)}
+  .group .gbody{padding:0 10px 11px 10px; display:flex; flex-direction:column; gap:8px}
+  .group.collapsed .gbody{display:none}
+  label.row{display:flex; align-items:center; gap:8px; font-size:11.5px; color:var(--fg-dim)}
+  label.row .lab{min-width:74px; color:var(--fg-dim)}
+  .hint{color:var(--fg-faint); font-size:11px; line-height:1.4}
+  .pill{display:inline-block;padding:1px 7px;border:1px solid var(--border2);border-radius:20px;
+        color:var(--fg);background:var(--bg3);font-size:11px;max-width:100%;overflow:hidden;
+        text-overflow:ellipsis;white-space:nowrap;vertical-align:middle}
+  button{
+    font-family:var(--mono); font-size:12px; color:var(--fg);
+    background:var(--bg3); border:1px solid var(--border2); border-radius:6px;
+    padding:6px 10px; cursor:pointer; transition:.12s; white-space:nowrap;
+  }
+  button:hover{border-color:var(--accent-dim); color:#fff; background:var(--bg4)}
+  button:active{transform:translateY(1px)}
+  button.primary{background:var(--accent); border-color:var(--accent); color:#1b1410; font-weight:600}
+  button.primary:hover{background:#e88a6b}
+  button.ghost{background:transparent}
+  button.sm{padding:4px 8px; font-size:11px}
+  .btnrow{display:flex; gap:6px; flex-wrap:wrap}
+  input[type=text],input[type=number],select{
+    font-family:var(--mono); font-size:12px; color:var(--fg);
+    background:var(--bg); border:1px solid var(--border2); border-radius:6px; padding:5px 7px;
+  }
+  input[type=number]{width:72px}
+  input[type=range]{accent-color:var(--accent); flex:1}
+  select{padding:5px 6px}
+  .toolbar{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+  .toolbar .meta{color:var(--fg-faint); font-size:11px; margin-left:auto}
+  textarea#work{
+    flex:1; resize:none; width:100%;
+    font-family:var(--mono); font-size:13px; line-height:1.35;
+    color:var(--fg); background:#1a1917; border:1px solid var(--border); border-radius:7px;
+    padding:12px; white-space:pre; overflow:auto; tab-size:8; -moz-tab-size:8;
+  }
+  textarea#work:focus{outline:none; border-color:var(--accent-dim)}
+  .srcblocks{display:flex; flex-direction:column; gap:5px; max-height:168px; overflow:auto}
+  .srcblock{border:1px solid var(--border); border-radius:5px; padding:5px 7px; cursor:pointer; background:var(--bg)}
+  .srcblock:hover{border-color:var(--accent-dim); background:var(--bg3)}
+  .srcblock .t{font-size:10.5px; color:var(--fg-faint); white-space:pre; overflow:hidden; text-overflow:ellipsis; max-height:30px}
+  .srcblock .tag{color:var(--accent); font-size:10px}
+  /* modal */
+  .backdrop{position:fixed; inset:0; background:rgba(10,9,8,.66); display:none; align-items:center;
+            justify-content:center; z-index:50; padding:24px}
+  .backdrop.open{display:flex}
+  .modal{background:var(--bg2); border:1px solid var(--border2); border-radius:10px; width:min(760px,96vw);
+         max-height:86vh; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,.5)}
+  .modal h2{margin:0; padding:13px 16px; font-size:13px; border-bottom:1px solid var(--border); display:flex; align-items:center}
+  .modal h2 .x{margin-left:auto}
+  .modal .body{padding:12px 16px; overflow:auto; display:flex; flex-direction:column; gap:9px}
+  .opt{border:1px solid var(--border); border-radius:7px; background:var(--bg); cursor:pointer; overflow:hidden}
+  .opt:hover{border-color:var(--accent)}
+  .opt .ohead{display:flex; align-items:center; gap:8px; padding:6px 10px; border-bottom:1px solid var(--border); background:var(--bg3)}
+  .opt .ohead .idx{color:var(--accent); font-weight:700; font-size:11px}
+  .opt .ohead .ty{margin-left:auto; color:var(--fg-faint); font-size:10.5px}
+  .opt pre{margin:0; padding:9px 10px; font-size:11px; line-height:1.3; white-space:pre; overflow:auto; max-height:170px; color:var(--fg)}
+  .opt.none pre{color:var(--fg-faint); font-style:italic}
+  .toast{position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:var(--bg4);
+         border:1px solid var(--border2); color:var(--fg); padding:8px 14px; border-radius:7px;
+         font-size:12px; z-index:80; opacity:0; transition:.25s; pointer-events:none; max-width:80vw}
+  .toast.show{opacity:1}
+  .toast.good{border-color:var(--good)} .toast.bad{border-color:var(--accent)}
+  ::-webkit-scrollbar{width:11px;height:11px}
+  ::-webkit-scrollbar-thumb{background:#3a3733;border-radius:6px;border:2px solid var(--bg)}
+  ::-webkit-scrollbar-track{background:transparent}
+  /* ---- overlay art feature ---- */
+  .ovprev-wrap{border:1px solid var(--border); border-radius:6px; background:#1a1917; max-height:180px; overflow:auto}
+  .ovprev{margin:0; padding:8px; font-size:10px; line-height:1.2; white-space:pre; color:var(--fg)}
+  .ovstage{position:relative; border:1px solid var(--border); border-radius:6px; background:#1a1917; overflow:auto; max-height:60vh; padding:24px; user-select:none; -webkit-user-select:none}
+  .ovbase{margin:0; padding:10px; white-space:pre; font-size:12px; line-height:16px; color:var(--fg); tab-size:8; -moz-tab-size:8}
+  .ovlayer{position:absolute; margin:0; padding:0; white-space:pre; font-size:12px; line-height:16px; color:var(--accent); text-shadow:0 0 2px rgba(0,0,0,.85); cursor:grab; left:10px; top:10px}
+  .ovbase.click{cursor:crosshair}
+  .ovlayer.click{cursor:crosshair; pointer-events:none}
+</style>
+
+
+<header>
+  <span class="dot"></span>
+  <h1>ASCII&nbsp;Helper</h1>
+  <span class="sub">block designer · particles · frames · centering</span>
+  <span class="spacer"></span>
+  <span class="io" id="ioMode"></span>
+</header>
+
+<div class="layout">
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside class="sidebar">
+
+    <!-- POOLS (one load feeds every step below) -->
+    <section class="group" data-g="pools">
+      <div class="ghead"><span class="num">&#9638;</span><span>Pools</span><span class="chev">▾</span></div>
+      <div class="gbody">
+        <div class="hint">Particles, side frames, top/bottom bars and stamps all come from one load. Served over HTTP they arrive by themselves from <b>pools/</b>; from <b>file://</b> pick them all at once here.</div>
+        <div class="btnrow"><button id="loadPools">Load pools&hellip;</button><span class="pill" id="poolsSel">none loaded</span></div>
+      </div>
+    </section>
+
+    <!-- SOURCE -->
+    <section class="group" data-g="src">
+      <div class="ghead"><span class="num">0</span><span>Source</span><span class="chev">▾</span></div>
+      <div class="gbody">
+        <div class="hint">Load a multi-block file (e.g. <b>pools/blocks.txt</b>) and click a block to load it, or just paste art into the editor.</div>
+        <div class="btnrow">
+          <button id="loadSrc">Load source file…</button>
+          <button class="ghost sm" id="clearWork">Clear editor</button>
+        </div>
+        <div class="srcblocks" id="srcList"></div>
+        <label class="row"><span class="lab">Tab width</span>
+          <input type="number" id="tabw" value="8" min="1" max="16">
+          <button class="sm" id="renorm" title="Expand tabs + trim trailing spaces on current editor text">Normalize</button>
+        </label>
+      </div>
+    </section>
+
+    <!-- OVERLAY ART (variant B — drag to place) -->
+    <section class="group" data-g="ov">
+      <div class="ghead"><span class="num">&#10697;</span><span>Overlay art (B)</span><span class="chev">&#9662;</span></div>
+      <div class="gbody">
+        <div class="hint">Load extra art, then <b>drag</b> it over the main canvas to position it.</div>
+        <div class="btnrow"><button id="ovLoad">Load stamps&hellip;</button><span class="pill" id="ovSel">no stamp</span></div>
+        <label class="row"><input type="checkbox" id="ovTrans" checked> <span>spaces transparent</span></label>
+        <label class="row"><input type="checkbox" id="ovUnder"> <span>place under (fill blanks only)</span></label>
+        <div class="btnrow"><button class="primary" id="ovPlace">Place by drag&hellip;</button></div>
+      </div>
+    </section>
+
+    <!-- PARTICLES -->
+    <section class="group" data-g="p1">
+      <div class="ghead"><span class="num">1</span><span>Particles</span><span class="chev">▾</span></div>
+      <div class="gbody">
+        <div class="hint">Fills blank cells only — never overwrites art, never adds rows.</div>
+        <div class="btnrow">
+          <button id="loadParticles">Load pool…</button>
+          <span class="pill" id="particleSel">no variant</span>
+        </div>
+        <label class="row"><span class="lab">Density</span>
+          <input type="range" id="density" min="0" max="100" value="10">
+          <span id="densityVal" style="min-width:34px;text-align:right">10%</span>
+        </label>
+        <div class="btnrow">
+          <button class="primary" id="applyParticles">Apply</button>
+          <button id="regenParticles">Regenerate</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SIDE FRAMES -->
+    <section class="group" data-g="p2">
+      <div class="ghead"><span class="num">2</span><span>Side frames</span><span class="chev">▾</span></div>
+      <div class="gbody">
+        <div class="btnrow">
+          <button id="loadSide">Load pool…</button>
+          <span class="pill" id="sideSel">no variant</span>
+        </div>
+        <label class="row"><span class="lab">Inner pad</span>
+          <input type="number" id="innerPad" value="1" min="0" max="12">
+          <span class="hint">spaces between bar &amp; art</span>
+        </label>
+        <div class="btnrow"><button class="primary" id="applySide">Apply</button></div>
+      </div>
+    </section>
+
+    <!-- TOP / BOTTOM -->
+    <section class="group" data-g="p3">
+      <div class="ghead"><span class="num">3</span><span>Top / bottom frames</span><span class="chev">▾</span></div>
+      <div class="gbody">
+        <div class="btnrow"><button id="loadTB">Load pool…</button></div>
+        <div class="btnrow">
+          <button class="sm" id="pickTop">Pick top…</button>
+          <span class="pill" id="topSel">none</span>
+        </div>
+        <div class="btnrow">
+          <button class="sm" id="pickBottom">Pick bottom…</button>
+          <span class="pill" id="bottomSel">none</span>
+        </div>
+        <label class="row"><input type="checkbox" id="stretch" checked> <span>Auto-stretch bars to block width</span></label>
+        <div class="btnrow"><button class="primary" id="applyTB">Apply</button></div>
+      </div>
+    </section>
+
+    <!-- MOVE / SHIFT -->
+    <section class="group" data-g="p4">
+      <div class="ghead"><span class="num">4</span><span>Move (shift)</span><span class="chev">▾</span></div>
+      <div class="gbody">
+        <div class="hint">Moves the whole block sideways by a fixed number of spaces — the same on every line, so the art keeps its shape. Left stops at column 0 (never clips).</div>
+        <label class="row"><span class="lab">Spaces</span>
+          <input type="number" id="shiftN" value="4" min="1" max="400">
+        </label>
+        <div class="btnrow">
+          <button id="shiftL">◀ Left</button>
+          <button class="primary" id="shiftR">Right ▶</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SPACE CLEANING -->
+    <section class="group" data-g="p5">
+      <div class="ghead"><span class="num">5</span><span>Space cleaning</span><span class="chev">▾</span></div>
+      <div class="gbody">
+        <div class="hint">Removes trailing spaces at the end of every line. Inner spaces and all symbols are untouched — e.g. <span class="pill">"lol&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"</span> → <span class="pill">"lol"</span></div>
+        <div class="btnrow"><button class="primary" id="applyClean">Apply</button></div>
+      </div>
+    </section>
+
+    <!-- SAVE -->
+    <section class="group" data-g="save">
+      <div class="ghead"><span class="num">6</span><span>Save to library</span><span class="chev">▾</span></div>
+      <div class="gbody">
+        <label class="row"><span class="lab">Block type</span>
+          <select id="blockType">
+            <option value="opening">opening</option>
+            <option value="text">text</option>
+            <option value="art" selected>art</option>
+            <option value="ending">ending</option>
+          </select>
+        </label>
+        <div class="btnrow">
+          <button id="loadLib">Load library…</button>
+          <span class="pill" id="libInfo">empty library</span>
+        </div>
+        <div class="btnrow">
+          <button class="primary" id="addLib">Add block ▸</button>
+          <button id="saveLib">Save library…</button>
+        </div>
+        <div class="btnrow">
+          <button class="ghost sm" id="exportBlock">Export block only</button>
+          <button class="ghost sm" id="copyWork">Copy editor</button>
+        </div>
+      </div>
+    </section>
+  </aside>
+
+  <!-- ===================== MAIN ===================== -->
+  <div class="main">
+    <div class="toolbar">
+      <button class="sm" id="undo">↶ Undo</button>
+      <button class="sm" id="reset">Reset to source</button>
+      <button class="sm" id="rtrim">Right-trim</button>
+      <span class="meta" id="meta">0 lines · width 0</span>
+    </div>
+    <textarea id="work" spellcheck="false" wrap="off" placeholder="Paste or load ASCII art here…
+
+Recommended order:
+  load → 1 particles → 2 side frames → 3 top/bottom → 4 move → 5 clean → 6 save"></textarea>
+  </div>
+</div>
+
+<div class="backdrop" id="backdrop"><div class="modal" id="modal"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const EOF = "===EOF===";
+const $ = id => document.getElementById(id);
+
+/* ---------- normalization ---------- */
+function expandTabs(text, tw){
+  tw = tw||8;
+  return text.split("\n").map(line=>{
+    let out="";
+    for(const ch of line){
+      if(ch==="\t"){ out += " ".repeat(tw - (out.length % tw)); }
+      else out += ch;
+    }
+    return out;
+  }).join("\n");
+}
+const rtrimLine = l => l.replace(/[ \t]+$/,"");
+function rtrimAll(text){ return text.split("\n").map(rtrimLine).join("\n"); }
+function normalize(text, tw){ return rtrimAll(expandTabs(text.replace(/\r\n?/g,"\n"), tw)); }
+function trimOuterBlank(lines){
+  while(lines.length && lines[0].trim()==="") lines.shift();
+  while(lines.length && lines[lines.length-1].trim()==="") lines.pop();
+  return lines;
+}
+
+/* ---------- unified pool/library parser ---------- */
+function parseEntries(text){
+  const lines = text.replace(/\r\n?/g,"\n").split("\n");
+  const entries = [];
+  let cur = [];
+  const flush = ()=>{
+    let body = cur.slice();
+    let type = "";
+    let i = body.length-1;
+    while(i>=0 && body[i].trim()==="") i--;
+    if(i>=0){
+      const m = body[i].match(/^type:(.*)$/);
+      if(m){ type = m[1].trim(); body.splice(i,1); }
+    }
+    body = trimOuterBlank(body);
+    if(body.length || type) entries.push({ body: body.join("\n"), type });
+  };
+  for(const ln of lines){
+    if(ln.trim()===EOF){ flush(); cur=[]; }
+    else cur.push(ln);
+  }
+  if(cur.some(l=>l.trim()!=="")) flush();
+  return entries;
+}
+
+/* ---------- file IO (auto + fallback) ---------- */
+async function loadTextFile(){
+  if(window.showOpenFilePicker){
+    try{
+      const [h] = await window.showOpenFilePicker({
+        types:[{description:"Text", accept:{"text/plain":[".txt"]}}]
+      });
+      const f = await h.getFile();
+      return { text: await f.text(), handle: h, name: f.name };
+    }catch(e){
+      if(e && e.name==="AbortError") throw e;   // user cancelled — don't fall back
+      // otherwise (SecurityError on file://, etc.) fall through to input
+    }
+  }
+  return await new Promise((resolve,reject)=>{
+    const inp = document.createElement("input");
+    inp.type="file"; inp.accept=".txt,text/plain";
+    inp.onchange = ()=>{
+      const f = inp.files[0];
+      if(!f){ reject(new Error("cancelled")); return; }
+      const r = new FileReader();
+      r.onload = ()=> resolve({ text:r.result, handle:null, name:f.name });
+      r.onerror = reject;
+      r.readAsText(f,"utf-8");
+    };
+    inp.click();
+  });
+}
+async function saveTextFile(text, suggestedName, handle){
+  if(handle && handle.createWritable){
+    try{ const w=await handle.createWritable(); await w.write(text); await w.close();
+         return {handle, method:"file"}; }catch(e){ /* fall through */ }
+  }
+  if(window.showSaveFilePicker){
+    try{
+      const h = await window.showSaveFilePicker({
+        suggestedName, types:[{description:"Text", accept:{"text/plain":[".txt"]}}]
+      });
+      const w=await h.createWritable(); await w.write(text); await w.close();
+      return {handle:h, method:"file"};
+    }catch(e){ if(e && e.name==="AbortError") throw e; }
+  }
+  const blob = new Blob([text], {type:"text/plain;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href=url; a.download=suggestedName||"output.txt";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+  return {handle:null, method:"download"};
+}
+
+/* ---------- toast ---------- */
+let toastT=null;
+function toast(msg, kind){
+  const t=$("toast"); t.textContent=msg; t.className="toast show "+(kind||"");
+  clearTimeout(toastT); toastT=setTimeout(()=>t.className="toast",2200);
+}
+
+/* ---------- modal / picker ---------- */
+function closeModal(){ $("backdrop").classList.remove("open"); $("modal").innerHTML=""; }
+$("backdrop").addEventListener("click", e=>{ if(e.target===$("backdrop")) closeModal(); });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeModal(); });
+
+function openPicker(title, items, onPick){
+  const modal=$("modal");
+  modal.innerHTML="";
+  const h=document.createElement("h2");
+  h.textContent=title;
+  const x=document.createElement("button"); x.className="ghost sm x"; x.textContent="✕";
+  x.onclick=closeModal; h.appendChild(x);
+  modal.appendChild(h);
+  const body=document.createElement("div"); body.className="body";
+  if(!items.length){
+    const e=document.createElement("div"); e.className="hint"; e.textContent="Pool is empty.";
+    body.appendChild(e);
+  }
+  items.forEach((it,i)=>{
+    const o=document.createElement("div"); o.className="opt"+(it.none?" none":"");
+    const oh=document.createElement("div"); oh.className="ohead";
+    const idx=document.createElement("span"); idx.className="idx"; idx.textContent=it.none?"·":("#"+(i+1));
+    const lab=document.createElement("span"); lab.textContent=it.label||"";
+    oh.appendChild(idx); oh.appendChild(lab);
+    if(it.type){ const ty=document.createElement("span"); ty.className="ty"; ty.textContent="type:"+it.type; oh.appendChild(ty); }
+    o.appendChild(oh);
+    const pre=document.createElement("pre"); pre.textContent=it.preview!==undefined?it.preview:(it.value||""); o.appendChild(pre);
+    o.onclick=()=>{ closeModal(); onPick(it); };
+    body.appendChild(o);
+  });
+  modal.appendChild(body);
+  $("backdrop").classList.add("open");
+}
+
+/* ===================== STATE ===================== */
+const state = {
+  src: [],                // [{body,type,label}]
+  particles: [],          // [{charset}]
+  activeParticle: null,
+  sides: [],              // [{token}]
+  activeSide: null,
+  tb: [],                 // [{body,type}]
+  activeTop: null,        // entry or null
+  activeBottom: null,
+  libraryText: "",
+  libraryHandle: null,
+  libraryCount: 0,
+  libraryDirty: false,
+  particleSnapshot: null, // pre-particle buffer for Regenerate
+  currentSource: null,    // last block loaded from source/library, for Reset
+  undo: []
+};
+
+function tabw(){ return Math.max(1, parseInt($("tabw").value)||8); }
+const work = ()=> $("work").value;
+function pushUndo(){ state.undo.push($("work").value); if(state.undo.length>60) state.undo.shift(); }
+function setWork(v, record){ if(record!==false) pushUndo(); $("work").value=v; updateMeta(); }
+function blockWidth(text){ let w=0; for(const l of text.split("\n")) if(l.length>w) w=l.length; return w; }
+function updateMeta(){
+  const t=$("work").value; const lines=t.split("\n");
+  $("meta").textContent = lines.length+" lines · width "+blockWidth(t);
+}
+$("work").addEventListener("input", updateMeta);
+
+/* ---------- collapsible groups ---------- */
+document.querySelectorAll(".group .ghead").forEach(h=>{
+  h.addEventListener("click", ()=> h.parentElement.classList.toggle("collapsed"));
+});
+
+/* ===================== POOLS =====================
+   One load fills every step. Files are routed by name first; the `type:` lines
+   are only a fallback, because stamps and libraries both use type:art, and a
+   particle set and a side-frame set can both be a single character. */
+function poolKindFromName(name){
+  const n=(name||"").toLowerCase();
+  if(n.indexOf("particle")>=0) return "particles";
+  if(n.indexOf("side")>=0)     return "sides";
+  if(n.indexOf("tb")>=0 || n.indexOf("frame")>=0) return "tb";
+  if(n.indexOf("stamp")>=0)    return "stamps";
+  if(n.indexOf("block")>=0)    return "blocks";
+  return null;
+}
+function poolKindFromText(text){
+  const es=parseEntries(text);
+  if(!es.length) return null;
+  if(es.some(e=>e.type==="top"||e.type==="bottom")) return "tb";
+  if(es.some(e=>["opening","text","ending"].indexOf(e.type)>=0)) return "blocks";
+  if(es.every(e=> e.body.indexOf("\n")<0 && e.body.replace(/\s/g,"").length<=12)) return "particles";
+  return "stamps";
+}
+function setPool(kind, text){
+  if(!text || !text.trim()) return 0;
+  if(kind==="particles"){
+    state.particles = parseEntries(text).map(e=>({ charset:e.body.replace(/\s+/g,"") })).filter(e=>e.charset.length);
+    return state.particles.length;
+  }
+  if(kind==="sides"){
+    state.sides = parseEntries(text).map(e=>({ token:e.body.replace(/\n/g,"") })).filter(e=>e.token.length);
+    return state.sides.length;
+  }
+  if(kind==="tb"){
+    state.tb = parseEntries(normalize(text, tabw())).filter(e=>e.body.length);
+    state.activeTop=null; state.activeBottom=null;
+    $("topSel").textContent="none"; $("bottomSel").textContent="none";
+    return state.tb.length;
+  }
+  if(kind==="stamps"){
+    state.stamps = parseEntries(normalize(text, tabw())).filter(e=>e.body.length);
+    return state.stamps.length;
+  }
+  if(kind==="blocks"){
+    const blocks = parseEntries(normalize(text, tabw()));
+    state.src = blocks.map((b,i)=>({ body:b.body, type:b.type, label:"Block "+(i+1) }));
+    renderSrc();
+    return state.src.length;
+  }
+  return 0;
+}
+function poolsChanged(){
+  const have = [];
+  if(state.particles.length) have.push(state.particles.length+" particle");
+  if(state.sides.length)     have.push(state.sides.length+" side");
+  if(state.tb.length)        have.push(state.tb.length+" bar");
+  if(state.stamps.length)    have.push(state.stamps.length+" stamp");
+  $("poolsSel").textContent = have.length ? have.join(" · ") : "none loaded";
+  $("loadParticles").textContent = state.particles.length ? "Pick variant…" : "Load pool…";
+  $("loadSide").textContent      = state.sides.length     ? "Pick variant…" : "Load pool…";
+  $("ovLoad").textContent        = state.stamps.length    ? "Pick art…"     : "Load stamps…";
+  $("loadTB").style.display      = state.tb.length ? "none" : "";   // Pick top / Pick bottom take over
+}
+function applyPools(pools){
+  if(!pools) return 0;
+  let n=0;
+  ["particles","sides","tb","stamps","blocks"].forEach(k=>{ if(pools[k] && setPool(k, pools[k])) n++; });
+  poolsChanged();
+  return n;
+}
+function pickFiles(){                       // multi-select, picker API or plain input
+  return new Promise((resolve,reject)=>{
+    const inp=document.createElement("input");
+    inp.type="file"; inp.multiple=true; inp.accept=".txt,text/plain";
+    inp.onchange = async ()=>{
+      const files=[...inp.files];
+      if(!files.length){ reject(new Error("cancelled")); return; }
+      resolve(await Promise.all(files.map(async f=>({ name:f.name, text:await f.text() }))));
+    };
+    inp.click();
+  });
+}
+$("loadPools").onclick = async ()=>{
+  let files;
+  try{ files = await pickFiles(); }catch(e){ return; }
+  const pools={}; let unknown=0;
+  files.forEach(f=>{
+    const kind = poolKindFromName(f.name) || poolKindFromText(f.text);
+    if(kind) pools[kind]=f.text; else unknown++;
+  });
+  const n = applyPools(pools);
+  if(!n){ toast("Nothing recognised in those files","bad"); return; }
+  try{ window.parent.postMessage({kind:"pb:poolsloaded", pools},"*"); }catch(_){}   // let the builder cache them
+  toast("Loaded "+n+" pool"+(n===1?"":"s")+(unknown?" · "+unknown+" file(s) not recognised":""),"good");
+};
+
+/* ===================== SOURCE ===================== */
+$("loadSrc").onclick = async ()=>{
+  try{
+    const {text,name} = await loadTextFile();
+    const blocks = parseEntries(normalize(text, tabw()));
+    state.src = blocks.map((b,i)=>({ body:b.body, type:b.type, label:"Block "+(i+1) }));
+    renderSrc();
+    toast("Loaded "+blocks.length+" block(s) from "+name, "good");
+  }catch(e){ if(e.name!=="AbortError") toast("Load cancelled"); }
+};
+function renderSrc(){
+  const list=$("srcList"); list.innerHTML="";
+  if(!state.src.length){ list.innerHTML='<div class="hint">No source loaded.</div>'; return; }
+  state.src.forEach((b,i)=>{
+    const d=document.createElement("div"); d.className="srcblock";
+    const firstLines=b.body.split("\n").slice(0,2).join("  ").slice(0,80);
+    d.innerHTML='<div class="tag">'+(b.type?("type:"+b.type):"untyped")+' · '+b.label+'</div>'+
+                '<div class="t">'+esc(firstLines||"(blank)")+'</div>';
+    d.onclick=()=>{ setWork(b.body); state.currentSource=b.body; if(b.type) $("blockType").value=b.type; toast("Loaded "+b.label); };
+    list.appendChild(d);
+  });
+}
+function esc(s){ return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
+$("clearWork").onclick = ()=> setWork("");
+$("renorm").onclick = ()=>{ setWork(normalize(work(), tabw())); toast("Normalized (tabs + trailing spaces)"); };
+
+/* ===================== PARTICLES ===================== */
+$("density").addEventListener("input", ()=> $("densityVal").textContent=$("density").value+"%");
+function pickParticle(){
+  openPicker("Pick a particle variant", state.particles.map(p=>({
+    label: p.charset, preview: p.charset, value:p.charset
+  })), it=>{
+    state.activeParticle = it.value;
+    $("particleSel").textContent = it.value;
+    $("particleSel").title = it.value;
+  });
+}
+$("loadParticles").onclick = async ()=>{
+  if(state.particles.length) return pickParticle();
+  try{
+    const {text} = await loadTextFile();
+    if(!setPool("particles", text)){ toast("No particle variants found","bad"); return; }
+    poolsChanged(); pickParticle();
+  }catch(e){ if(e.name!=="AbortError") toast("Load cancelled"); }
+};
+function sprinkle(text, charset, density){
+  const chars=[...charset].filter(c=>c!==" ");
+  if(!chars.length) return text;
+  let lines=text.split("\n");
+  const W=blockWidth(text);
+  return lines.map(line=>{
+    const arr=[...line.padEnd(W," ")];
+    for(let c=0;c<arr.length;c++){
+      if(arr[c]===" " && Math.random()<density){
+        arr[c]=chars[Math.floor(Math.random()*chars.length)];
+      }
+    }
+    return rtrimLine(arr.join(""));
+  }).join("\n");
+}
+$("applyParticles").onclick = ()=>{
+  if(!state.activeParticle){ toast("Load a particle pool first","bad"); return; }
+  state.particleSnapshot = work();
+  setWork(sprinkle(work(), state.activeParticle, (+$("density").value)/100));
+  toast("Particles applied");
+};
+$("regenParticles").onclick = ()=>{
+  if(!state.activeParticle){ toast("Load a particle pool first","bad"); return; }
+  const base = state.particleSnapshot!==null ? state.particleSnapshot : work();
+  state.particleSnapshot = base;
+  setWork(sprinkle(base, state.activeParticle, (+$("density").value)/100));
+  toast("Re-rolled particles");
+};
+
+/* ===================== SIDE FRAMES ===================== */
+function pickSide(){
+  openPicker("Pick a side-frame character", state.sides.map(s=>({
+    label: s.token, preview: s.token+"   …content…   "+s.token, value:s.token
+  })), it=>{
+    state.activeSide=it.value;
+    $("sideSel").textContent=it.value; $("sideSel").title=it.value;
+  });
+}
+$("loadSide").onclick = async ()=>{
+  if(state.sides.length) return pickSide();
+  try{
+    const {text} = await loadTextFile();
+    if(!setPool("sides", text)){ toast("No side variants found","bad"); return; }
+    poolsChanged(); pickSide();
+  }catch(e){ if(e.name!=="AbortError") toast("Load cancelled"); }
+};
+function applySides(text, token, innerPad){
+  const W=blockWidth(text); const pad=" ".repeat(innerPad);
+  return text.split("\n").map(l=> token+pad+l.padEnd(W," ")+pad+token).join("\n");
+}
+$("applySide").onclick = ()=>{
+  if(!state.activeSide){ toast("Load a side pool first","bad"); return; }
+  setWork(applySides(work(), state.activeSide, Math.max(0,parseInt($("innerPad").value)||0)));
+  toast("Side frames applied");
+};
+
+/* ===================== TOP / BOTTOM ===================== */
+$("loadTB").onclick = async ()=>{
+  try{
+    const {text} = await loadTextFile();
+    if(!setPool("tb", text)){ toast("No bars found in that file","bad"); return; }
+    poolsChanged();
+    const tops=state.tb.filter(e=>e.type==="top").length, bots=state.tb.filter(e=>e.type==="bottom").length;
+    toast("Loaded "+tops+" top · "+bots+" bottom bar(s)","good");
+  }catch(e){ if(e.name!=="AbortError") toast("Load cancelled"); }
+};
+function tbPicker(which){
+  if(!state.tb.length){ toast("Load a top/bottom pool first","bad"); return; }
+  const list=state.tb.filter(e=>e.type===which);
+  const items=[{none:true,label:"(none)",preview:"— no "+which+" bar —",value:null}]
+    .concat(list.map(e=>({label:(e.body.split("\n")[0]||"").slice(0,60), preview:e.body, type:e.type, value:e})));
+  openPicker("Pick a "+which+" bar", items, it=>{
+    if(which==="top"){ state.activeTop=it.value; $("topSel").textContent=it.value?firstLine(it.value.body):"none"; }
+    else{ state.activeBottom=it.value; $("bottomSel").textContent=it.value?firstLine(it.value.body):"none"; }
+  });
+}
+function firstLine(b){ return (b.split("\n")[0]||"").slice(0,28); }
+$("pickTop").onclick=()=>tbPicker("top");
+$("pickBottom").onclick=()=>tbPicker("bottom");
+
+const RULER = new Set([..."─━═╌╍┄┅┈┉-="]);
+function stretchLine(line, W){
+  const cur=[...line];
+  const delta = W - cur.length;
+  if(delta===0) return line;
+  // candidate ruler char: ruler char with longest single run (>=2) and max total length
+  let best=null, bestScore=-1;
+  const seen=new Set();
+  for(const ch of cur){
+    if(!RULER.has(ch) || seen.has(ch)) continue;
+    seen.add(ch);
+    const runs=[]; let i=0;
+    while(i<cur.length){
+      if(cur[i]===ch){ let j=i; while(j<cur.length && cur[j]===ch) j++; runs.push([i,j-i]); i=j; }
+      else i++;
+    }
+    const maxrun=Math.max(...runs.map(r=>r[1]));
+    const total=runs.reduce((s,r)=>s+r[1],0);
+    if(maxrun>=2 && total>bestScore){ bestScore=total; best={ch,runs}; }
+  }
+  if(best){
+    const n=best.runs.length;
+    const add=new Array(n).fill(0);
+    if(delta>0){ for(let k=0;k<delta;k++) add[k%n]++; }
+    else{
+      let rem=-delta, k=0, guard=200000;
+      while(rem>0 && guard-->0){
+        const idx=k%n;
+        if(best.runs[idx][1]+add[idx] > 1){ add[idx]--; rem--; }
+        k++;
+        if(best.runs.every((r,i)=> r[1]+add[i] <= 1)) break;
+      }
+    }
+    let out="", pos=0;
+    for(let i=0;i<best.runs.length;i++){
+      const [start,len]=best.runs[i];
+      out += cur.slice(pos,start).join("");
+      out += best.ch.repeat(Math.max(1,len+add[i]));
+      pos = start+len;
+    }
+    out += cur.slice(pos).join("");
+    return out;
+  }
+  // no ruler run → pad/trim spaces
+  if(delta>0){
+    const trimmed=line.replace(/\s+$/,"");
+    if(trimmed.length){
+      const tail=line.slice(trimmed.length);
+      return trimmed.slice(0,-1) + " ".repeat(delta) + trimmed.slice(-1) + tail;
+    }
+    return line + " ".repeat(delta);
+  }else{
+    const trail=line.length - line.replace(/\s+$/,"").length;
+    return line.slice(0, line.length - Math.min(trail,-delta));
+  }
+}
+function fitBar(body, W, stretch){
+  const lines=body.split("\n");
+  return stretch ? lines.map(l=>stretchLine(l,W)) : lines;
+}
+$("applyTB").onclick = ()=>{
+  if(!state.activeTop && !state.activeBottom){ toast("Pick a top and/or bottom bar","bad"); return; }
+  const W=blockWidth(work());
+  const st=$("stretch").checked;
+  let out=[];
+  if(state.activeTop) out=out.concat(fitBar(state.activeTop.body, W, st));
+  out=out.concat(work().split("\n"));
+  if(state.activeBottom) out=out.concat(fitBar(state.activeBottom.body, W, st));
+  setWork(out.join("\n"));
+  toast("Top/bottom applied");
+};
+
+/* ===================== MOVE / SHIFT ===================== */
+function shiftRight(text, n){
+  const p=" ".repeat(n);
+  return text.split("\n").map(l=> l.length ? p+l : l).join("\n");
+}
+function minLeading(text){          // smallest leading-space count among non-blank lines
+  let m=Infinity;
+  for(const l of text.split("\n")){ if(l.trim()==="") continue; m=Math.min(m, l.length - l.replace(/^ +/,"").length); }
+  return m===Infinity ? 0 : m;
+}
+$("shiftR").onclick = ()=>{
+  const n=Math.max(0, parseInt($("shiftN").value)||0);
+  if(!n){ toast("Enter a number ≥ 1","bad"); return; }
+  setWork(shiftRight(work(), n));
+  toast("Moved right "+n+(n===1?" space":" spaces"));
+};
+$("shiftL").onclick = ()=>{
+  const n=Math.max(0, parseInt($("shiftN").value)||0);
+  if(!n){ toast("Enter a number ≥ 1","bad"); return; }
+  const remove=Math.min(n, minLeading(work()));   // never remove real content
+  if(!remove){ toast("Already at the left edge","bad"); return; }
+  setWork(work().split("\n").map(l=> l.length ? l.slice(remove) : l).join("\n"));
+  toast(remove<n ? ("Moved left "+remove+" (hit left edge)") : ("Moved left "+n+(n===1?" space":" spaces")));
+};
+
+/* ===================== SPACE CLEANING ===================== */
+$("applyClean").onclick = ()=>{
+  const before = work();
+  const after = rtrimAll(before);
+  setWork(after);
+  const removed = before.length - after.length;
+  toast(removed>0 ? "Cleaned "+removed+" trailing space(s)" : "No trailing spaces found");
+};
+
+/* ===================== SAVE / LIBRARY ===================== */
+function makeEntry(body, type){
+  const clean = trimOuterBlank(rtrimAll(body).split("\n")).join("\n");
+  return clean + "\n" + "type:" + type + "\n" + EOF + "\n";
+}
+function refreshLibInfo(){
+  const n=state.libraryCount;
+  $("libInfo").textContent = (n? n+" block(s)" : "empty library") + (state.libraryDirty? " ·unsaved" : "");
+}
+$("loadLib").onclick = async ()=>{
+  try{
+    const {text,handle,name} = await loadTextFile();
+    state.libraryText=text; state.libraryHandle=handle;
+    state.libraryCount=parseEntries(text).length; state.libraryDirty=false;
+    refreshLibInfo();
+    toast("Library: "+state.libraryCount+" block(s) from "+name,"good");
+  }catch(e){ if(e.name!=="AbortError") toast("Load cancelled"); }
+};
+$("addLib").onclick = ()=>{
+  const body=work();
+  if(!body.trim()){ toast("Editor is empty","bad"); return; }
+  if(state.libraryText && !state.libraryText.endsWith("\n")) state.libraryText+="\n";
+  state.libraryText += makeEntry(body, $("blockType").value);
+  state.libraryCount = parseEntries(state.libraryText).length;
+  state.libraryDirty=true; refreshLibInfo();
+  toast("Added as type:"+$("blockType").value+" — "+state.libraryCount+" total");
+};
+$("saveLib").onclick = async ()=>{
+  if(!state.libraryText.trim()){ toast("Nothing to save — add a block first","bad"); return; }
+  try{
+    const r=await saveTextFile(state.libraryText, "blocks.txt", state.libraryHandle);
+    if(r.handle) state.libraryHandle=r.handle;
+    state.libraryDirty=false; refreshLibInfo();
+    toast(r.method==="download"?"Downloaded blocks.txt":"Saved library","good");
+  }catch(e){ if(e.name!=="AbortError") toast("Save cancelled"); }
+};
+$("exportBlock").onclick = async ()=>{
+  if(!work().trim()){ toast("Editor is empty","bad"); return; }
+  try{
+    await saveTextFile(makeEntry(work(), $("blockType").value), "block.txt", null);
+    toast("Exported block","good");
+  }catch(e){ if(e.name!=="AbortError") toast("Export cancelled"); }
+};
+$("copyWork").onclick = async ()=>{
+  try{ await navigator.clipboard.writeText(work()); toast("Editor copied","good"); }
+  catch(e){ toast("Clipboard blocked — select & copy manually","bad"); }
+};
+
+/* ===================== EDITOR TOOLBAR ===================== */
+$("undo").onclick = ()=>{ if(state.undo.length){ $("work").value=state.undo.pop(); updateMeta(); toast("Undo"); } else toast("Nothing to undo"); };
+$("reset").onclick = ()=>{
+  state.particleSnapshot=null;
+  if(state.currentSource!==null){ setWork(state.currentSource); toast("Reset to loaded source block"); }
+  else toast("No source block loaded — paste or load one first","bad");
+};
+$("rtrim").onclick = ()=>{ setWork(rtrimAll(work())); toast("Trailing spaces removed"); };
+
+/* ---------- io mode indicator ---------- */
+$("ioMode").textContent = window.showOpenFilePicker ? "direct file access ✓" : "picker + download mode";
+
+renderSrc(); refreshLibInfo(); updateMeta();
+
+/* ===================== OVERLAY ART (variant B — drag to place) ===================== */
+state.stamps = [];
+state.activeStamp = null;
+function ovMerge(main, stamp, col, row, transparent, under){
+  col = col|0; row = row|0;
+  var sl = stamp.split("\n");
+  var shiftC = col < 0 ? -col : 0, shiftR = row < 0 ? -row : 0;       // negative offset => shift the canvas
+  var lead = shiftC ? " ".repeat(shiftC).split("") : null;
+  var grid = main.split("\n").map(function(l){ var a = l.split(""); return lead ? lead.concat(a) : a; });
+  for(var i=0; i<shiftR; i++) grid.unshift([]);
+  var pc = col + shiftC, pr = row + shiftR;                            // adjusted (>=0) placement origin
+  for(var r=0; r<sl.length; r++){
+    var tr = pr + r;
+    while(grid.length <= tr) grid.push([]);
+    var cells = sl[r].split("");
+    for(var c=0; c<cells.length; c++){
+      var ch = cells[c];
+      if(transparent && ch === " ") continue;
+      var tc = pc + c;
+      var g = grid[tr];
+      while(g.length <= tc) g.push(" ");
+      if(under && g[tc] && g[tc] !== " ") continue;
+      g[tc] = ch;
+    }
+  }
+  return grid.map(function(g){ return rtrimLine(g.join("")); }).join("\n");
+}
+function pickStamp(after){
+  openPicker("Pick art to overlay", state.stamps.map(function(s){
+    return { label:(s.body.split("\n")[0]||"").slice(0,48), preview:s.body, type:s.type, value:s };
+  }), function(it){
+    state.activeStamp = it.value.body;
+    $("ovSel").textContent = (it.value.body.split("\n")[0]||"art").slice(0,22);
+    if(after) after();
+  });
+}
+function ovPickFile(after){
+  if(state.stamps.length){ pickStamp(after); return Promise.resolve(); }
+  return loadTextFile().then(function(f){
+    if(!setPool("stamps", f.text)){ toast("No art found in that file","bad"); return; }
+    poolsChanged(); pickStamp(after);
+  }).catch(function(e){ if(e && e.name!=="AbortError") toast("Load cancelled"); });
+}
+function ovMetrics(base){
+  var probe = document.createElement("span");
+  probe.style.cssText = "visibility:hidden;white-space:pre;position:absolute;left:-9999px";
+  probe.style.fontFamily = getComputedStyle(base).fontFamily;
+  probe.style.fontSize = getComputedStyle(base).fontSize;
+  probe.textContent = "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+  document.body.appendChild(probe);
+  var cw = probe.getBoundingClientRect().width / probe.textContent.length;
+  document.body.removeChild(probe);
+  return {
+    cw: cw,
+    lh: parseFloat(getComputedStyle(base).lineHeight) || 16,
+    padL: parseFloat(getComputedStyle(base).paddingLeft) || 0,
+    padT: parseFloat(getComputedStyle(base).paddingTop) || 0
+  };
+}
+function ovModal(title){
+  var modal = $("modal"); modal.innerHTML = "";
+  var h = document.createElement("h2"); h.textContent = title;
+  var x = document.createElement("button"); x.className = "ghost sm x"; x.textContent = "✕"; h.appendChild(x);
+  modal.appendChild(h);
+  var body = document.createElement("div"); body.className = "body"; modal.appendChild(body);
+  $("backdrop").classList.add("open");
+  return { body: body, x: x };
+}
+$("ovLoad").onclick = function(){ ovPickFile(); };
+$("ovPlace").onclick = function(){
+  if(!state.activeStamp){ toast("Load & pick art first","bad"); return; }
+  var mainText = normalize(work(), tabw());                         // tabs -> spaces so the canvas matches the merge
+  var m = ovModal("Drag the art onto the canvas, then Merge");
+  var stage = document.createElement("div"); stage.className = "ovstage";
+  var base = document.createElement("pre"); base.className = "ovbase"; base.textContent = mainText;
+  var layer = document.createElement("pre"); layer.className = "ovlayer"; layer.textContent = state.activeStamp;
+  stage.appendChild(base); stage.appendChild(layer); m.body.appendChild(stage);
+  var info = document.createElement("div"); info.className = "hint"; info.style.marginTop = "8px"; info.textContent = "col 0, row 0"; m.body.appendChild(info);
+  var rowEl = document.createElement("div"); rowEl.className = "btnrow"; rowEl.style.marginTop = "8px";
+  var merge = document.createElement("button"); merge.className = "primary"; merge.textContent = "Merge here ▸";
+  var cancel = document.createElement("button"); cancel.className = "ghost"; cancel.textContent = "Cancel";
+  rowEl.appendChild(merge); rowEl.appendChild(cancel); m.body.appendChild(rowEl);
+  var met = ovMetrics(base);
+  var originX = base.offsetLeft + met.padL, originY = base.offsetTop + met.padT;     // col0/row0 = base text origin
+  var minCol = -Math.floor(originX/met.cw), minRow = -Math.floor(originY/met.lh);    // gutter allows a little negative
+  var col = 0, rw = 0, grabC = 0, grabR = 0, drag = false;
+  function place(){
+    layer.style.left = Math.round(originX + col*met.cw) + "px";      // pixel-snap to avoid sub-pixel blur
+    layer.style.top  = Math.round(originY + rw*met.lh) + "px";
+    info.textContent = "col " + col + ", row " + rw;
+  }
+  function cellAt(e){
+    var r = base.getBoundingClientRect();                            // re-read each move -> stays correct while auto-scrolling
+    return { c: Math.round((e.clientX - r.left - met.padL)/met.cw), r: Math.round((e.clientY - r.top - met.padT)/met.lh) };
+  }
+  function autoScroll(e){
+    var s = stage.getBoundingClientRect(), E = 26, step = 16;
+    if(e.clientY > s.bottom - E) stage.scrollTop += step; else if(e.clientY < s.top + E) stage.scrollTop -= step;
+    if(e.clientX > s.right - E) stage.scrollLeft += step; else if(e.clientX < s.left + E) stage.scrollLeft -= step;
+  }
+  function onMove(e){
+    if(!drag) return;
+    autoScroll(e);
+    var cc = cellAt(e);
+    col = Math.max(minCol, cc.c - grabC);
+    rw  = Math.max(minRow, cc.r - grabR);
+    place();
+  }
+  place();
+  layer.addEventListener("pointerdown", function(e){
+    drag = true; layer.style.cursor = "grabbing";
+    try{ layer.setPointerCapture(e.pointerId); }catch(_){}            // keep receiving events even if released outside the iframe
+    var cc = cellAt(e); grabC = cc.c - col; grabR = cc.r - rw;        // preserve the grab point under the cursor
+    e.preventDefault();
+  });
+  layer.addEventListener("pointermove", onMove);
+  layer.addEventListener("pointerup", function(e){ drag = false; layer.style.cursor = "grab"; try{ layer.releasePointerCapture(e.pointerId); }catch(_){} });
+  merge.onclick = function(){ setWork(ovMerge(mainText, state.activeStamp, col, rw, $("ovTrans").checked, $("ovUnder").checked)); closeModal(); toast("Overlay merged"); };
+  cancel.onclick = closeModal; m.x.onclick = closeModal;
+};
+
+/* ---------- Paste-Builder bridge (active only when embedded in an iframe) ---------- */
+(function(){
+  if(window.self===window.top) return;                 // standalone helper: do nothing
+  let embedId=null;                                    // id of the builder block being edited
+  function loadFromBuilder(body,type,id){
+    embedId = (id===undefined?null:id);
+    setWork(body||"");
+    state.currentSource = body||"";                    // so "Reset to source" restores it
+    if(type) $("blockType").value=type;
+  }
+  const detach=()=>{ embedId=null; };                  // user started different content => save as new
+  $("clearWork").addEventListener("click",detach);
+  $("loadSrc").addEventListener("click",detach);
+  $("srcList").addEventListener("click",detach,true);
+  window.addEventListener("message",e=>{
+    const d=e.data||{};
+    if(d.kind==="pb:load") loadFromBuilder(d.body,d.type,d.id);
+    else if(d.kind==="pb:getsave") (e.source||window.parent).postMessage({kind:"pb:save",body:work(),type:$("blockType").value,id:embedId},"*");
+    else if(d.kind==="pb:setid") embedId=d.id;
+    else if(d.kind==="pb:pools") applyPools(d.pools);
+  });
+  try{ window.parent.postMessage({kind:"pb:ready"},"*"); }catch(_){}
+})();
+</script>
+</template>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const EOF="===EOF===";
+const $=id=>document.getElementById(id);
+const TYPES=["opening","text","art","ending","untyped"];
+
+/* ---------- shared helpers ---------- */
+const rtrimLine=l=>l.replace(/[ \t]+$/,"");
+function expandTabs(text,tw){tw=tw||8;return text.split("\n").map(line=>{let o="";for(const ch of line){if(ch==="\t")o+=" ".repeat(tw-(o.length%tw));else o+=ch;}return o;}).join("\n");}
+function rtrimAll(t){return t.split("\n").map(rtrimLine).join("\n");}
+function trimOuterBlank(lines){while(lines.length&&lines[0].trim()==="")lines.shift();while(lines.length&&lines[lines.length-1].trim()==="")lines.pop();return lines;}
+function parseEntries(text){
+  const lines=text.replace(/\r\n?/g,"\n").split("\n"); const entries=[]; let cur=[];
+  const flush=()=>{
+    let body=cur.slice(); let type="";
+    let i=body.length-1; while(i>=0&&body[i].trim()==="")i--;
+    if(i>=0){const m=body[i].match(/^type:(.*)$/); if(m){type=m[1].trim(); body.splice(i,1);}}
+    body=trimOuterBlank(body);
+    if(body.length||type) entries.push({body:body.join("\n"),type});
+  };
+  for(const ln of lines){ if(ln.trim()===EOF){flush();cur=[];} else cur.push(ln); }
+  if(cur.some(l=>l.trim()!=="")) flush();
+  return entries;
+}
+async function loadTextFile(){
+  if(window.showOpenFilePicker){
+    try{
+      const [h]=await window.showOpenFilePicker({types:[{description:"Text",accept:{"text/plain":[".txt"]}}]});
+      const f=await h.getFile(); return {text:await f.text(),handle:h,name:f.name};
+    }catch(e){ if(e&&e.name==="AbortError") throw e; }
+  }
+  return await new Promise((resolve,reject)=>{
+    const inp=document.createElement("input"); inp.type="file"; inp.accept=".txt,text/plain";
+    inp.onchange=()=>{const f=inp.files[0]; if(!f){reject(new Error("cancelled"));return;}
+      const r=new FileReader(); r.onload=()=>resolve({text:r.result,handle:null,name:f.name}); r.onerror=reject; r.readAsText(f,"utf-8");};
+    inp.click();
+  });
+}
+async function saveTextFile(text,suggestedName,handle){
+  if(handle&&handle.createWritable){try{const w=await handle.createWritable();await w.write(text);await w.close();return{handle,method:"file"};}catch(e){}}
+  if(window.showSaveFilePicker){try{const h=await window.showSaveFilePicker({suggestedName,types:[{description:"Text",accept:{"text/plain":[".txt"]}}]});const w=await h.createWritable();await w.write(text);await w.close();return{handle:h,method:"file"};}catch(e){if(e&&e.name==="AbortError")throw e;}}
+  const blob=new Blob([text],{type:"text/plain;charset=utf-8"}); const url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download=suggestedName||"output.txt"; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500); return {handle:null,method:"download"};
+}
+let toastT=null;
+function toast(msg,kind){const t=$("toast");t.textContent=msg;t.className="toast show "+(kind||"");clearTimeout(toastT);toastT=setTimeout(()=>t.className="toast",2200);}
+function esc(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+
+/* ---------- state ---------- */
+const state={ blocks:[], handle:null, filter:"all", seq:[], editId:null, helperReady:false, pendingLoad:null, pools:null };  // seq = [{block, uid}]
+let uidc=1, bid=1;
+
+$("ioMode").textContent = window.showOpenFilePicker ? "direct file access ✓" : "picker + download";
+
+/* ---------- load ---------- */
+$("loadLib").onclick=async ()=>{
+  try{
+    const {text,handle,name}=await loadTextFile();
+    if(!loadLibraryText(text, name)){ toast("No blocks found in that file","bad"); return; }
+    state.handle=handle;
+    cachePools({blocks:text});                 // the Helper's Source list picks it up too
+  }catch(e){ if(e.name!=="AbortError") toast("Load cancelled"); }
+};
+
+/* ---------- palette ---------- */
+function countByType(t){ return state.blocks.filter(b=> t==="all"? true : b.type===t).length; }
+function renderTabs(){
+  const wrap=$("tabs"); wrap.innerHTML="";
+  const defs=[["all","all"]].concat(TYPES.map(t=>[t,t]));
+  defs.forEach(([key,label])=>{
+    const c=countByType(key);
+    if(key!=="all" && c===0) return;
+    const d=document.createElement("div");
+    d.className="tab"+(state.filter===key?" active":"");
+    d.innerHTML=esc(label)+' <span class="cnt">'+c+'</span>';
+    d.onclick=()=>{ state.filter=key; renderTabs(); renderPalette(); };
+    wrap.appendChild(d);
+  });
+  $("palCount").textContent=state.blocks.length+" blocks";
+}
+function renderPalette(){
+  const body=$("palBody"); body.innerHTML="";
+  const list=state.blocks.filter(b=> state.filter==="all"? true : b.type===state.filter);
+  if(!list.length){ body.innerHTML='<div class="empty">No blocks. Load a library (e.g. pools/blocks.txt), or design one in the ASCII Helper tab.</div>'; return; }
+  list.forEach(b=>{
+    const card=document.createElement("div"); card.className="card";
+    const ch=document.createElement("div"); ch.className="chead";
+    ch.innerHTML='<span class="dotty '+b.type+'"></span><span class="ty '+b.type+'">'+esc(b.type)+'</span>'+
+                 '<span class="sub" style="color:var(--fg-faint)">#'+(b.idx+1)+'</span><span class="spacer"></span>';
+    const edit=document.createElement("button"); edit.className="sm"; edit.textContent="✎ Helper"; edit.title="Edit this block in the Helper";
+    edit.onclick=()=>sendToHelper(b); ch.appendChild(edit);
+    const add=document.createElement("button"); add.className="sm primary"; add.textContent="Add ▸";
+    add.onclick=()=>addToSeq(b); ch.appendChild(add);
+    card.appendChild(ch);
+    const pre=document.createElement("pre"); pre.textContent=b.body; card.appendChild(pre);
+    body.appendChild(card);
+  });
+}
+
+/* ---------- sequence ---------- */
+function addToSeq(block){ state.seq.push({block, uid:uidc++}); renderSeq(); rebuild(); toast("Added "+block.type+" block"); }
+function renderSeq(){
+  const body=$("seqBody"); body.innerHTML="";
+  if(!state.seq.length){ body.innerHTML='<div class="empty">Click <b>Add ▸</b> on palette blocks to build your paste.<br>Drag the ⠿ handle to reorder. Tip: opening first, ending last.</div>'; return; }
+  state.seq.forEach((it,i)=>{
+    const d=document.createElement("div"); d.className="seqitem"; d.draggable=true; d.dataset.i=i;
+    const sh=document.createElement("div"); sh.className="shead";
+    sh.innerHTML='<span class="grip">⠿</span><span class="idx">'+(i+1)+'</span>'+
+                 '<span class="dotty '+it.block.type+'"></span><span class="ty '+it.block.type+'">'+esc(it.block.type)+'</span><span class="spacer"></span>';
+    const ed=mk("✎",()=>sendToHelper(it.block)); ed.title="Edit in Helper";
+    const up=mk("▲",()=>move(i,-1)), dn=mk("▼",()=>move(i,1)), rm=mk("✕",()=>remove(i));
+    sh.appendChild(ed); sh.appendChild(up); sh.appendChild(dn); sh.appendChild(rm);
+    d.appendChild(sh);
+    const pre=document.createElement("pre"); pre.textContent=it.block.body; d.appendChild(pre);
+    addDnD(d,i);
+    body.appendChild(d);
+  });
+}
+function mk(txt,fn){ const b=document.createElement("button"); b.className="ghost sm"; b.textContent=txt; b.onclick=fn; return b; }
+function move(i,dir){ const j=i+dir; if(j<0||j>=state.seq.length) return; const t=state.seq[i]; state.seq[i]=state.seq[j]; state.seq[j]=t; renderSeq(); rebuild(); }
+function remove(i){ state.seq.splice(i,1); renderSeq(); rebuild(); }
+$("clearSeq").onclick=()=>{ state.seq=[]; renderSeq(); rebuild(); };
+
+let dragFrom=null;
+function addDnD(el,i){
+  el.addEventListener("dragstart",e=>{ dragFrom=i; el.classList.add("dragging"); e.dataTransfer.effectAllowed="move"; });
+  el.addEventListener("dragend",()=>{ dragFrom=null; el.classList.remove("dragging"); document.querySelectorAll(".seqitem").forEach(x=>x.classList.remove("over")); });
+  el.addEventListener("dragover",e=>{ e.preventDefault(); el.classList.add("over"); });
+  el.addEventListener("dragleave",()=> el.classList.remove("over"));
+  el.addEventListener("drop",e=>{ e.preventDefault(); el.classList.remove("over");
+    if(dragFrom===null||dragFrom===i) return;
+    const moved=state.seq.splice(dragFrom,1)[0]; state.seq.splice(i,0,moved); renderSeq(); rebuild();
+  });
+}
+
+/* ---------- build output ---------- */
+function rebuild(){
+  const gap=Math.max(0,parseInt($("gap").value)||0);
+  const sep="\n".repeat(gap+1);
+  const text=state.seq.map(it=> rtrimAll(it.block.body)).join(sep);
+  $("out").textContent=text;
+  const lines = text? text.split("\n").length : 0;
+  $("outMeta").textContent=lines+" lines";
+}
+$("gap").addEventListener("input", rebuild);
+
+$("copyOut").onclick=async ()=>{
+  const t=$("out").textContent;
+  if(!t){ toast("Nothing to copy","bad"); return; }
+  try{ await navigator.clipboard.writeText(t); toast("Copied paste","good"); }
+  catch(e){ toast("Clipboard blocked — select manually","bad"); }
+};
+$("saveOut").onclick=async ()=>{
+  const t=$("out").textContent;
+  if(!t){ toast("Nothing to save — add blocks first","bad"); return; }
+  try{ const r=await saveTextFile(t,"paste.txt",null);
+    toast(r.method==="download"?"Downloaded paste.txt":"Saved paste","good"); }
+  catch(e){ if(e.name!=="AbortError") toast("Save cancelled"); }
+};
+
+/* ---------- app tabs (Paste Builder / Helper) ---------- */
+const helperFrame=$("helperFrame");
+function showView(name){
+  document.querySelectorAll(".apptab").forEach(t=> t.classList.toggle("active", t.dataset.view===name));
+  $("view-builder").classList.toggle("active", name==="builder");
+  $("view-helper").classList.toggle("active", name==="helper");
+  const builderOnly = name==="builder";
+  $("loadLib").style.display = builderOnly ? "" : "none";
+  $("ioMode").style.display  = builderOnly ? "" : "none";
+  $("saveFromHelper").style.display = builderOnly ? "none" : "";
+  if(name==="helper" && !helperFrame.dataset.loaded){
+    const tpl=document.getElementById("helperTpl");
+    helperFrame.srcdoc='<!DOCTYPE html><html><head><meta charset="utf-8"><style>header{display:none!important}</style></head><body>'+tpl.innerHTML+'</body></html>';
+    helperFrame.dataset.loaded="1";
+  }  // build embedded helper once (no external file)
+}
+document.querySelectorAll(".apptab").forEach(t=> t.addEventListener("click", ()=> showView(t.dataset.view)));
+
+/* ---------- send blocks to the Helper, save them back to sequence + palette ---------- */
+function sendToHelper(block){
+  if(block.id==null) block.id=bid++;
+  state.editId=block.id;
+  showView("helper");                                   // builds the iframe if needed
+  const payload={kind:"pb:load", body:block.body, type:block.type, id:block.id};
+  if(state.helperReady) helperFrame.contentWindow.postMessage(payload,"*");
+  else state.pendingLoad=payload;                        // sent once the helper signals ready
+  toast("Sent to Helper — edit, then “Save ▸ sequence”");
+}
+$("saveFromHelper").onclick=()=>{
+  if(!helperFrame.dataset.loaded || !state.helperReady){ toast("Open a block in the Helper first","bad"); return; }
+  helperFrame.contentWindow.postMessage({kind:"pb:getsave"},"*");   // helper replies with pb:save
+};
+function applyHelperSave(body,type,id){
+  if(!body || !body.trim()){ toast("Helper editor is empty","bad"); return; }
+  type = TYPES.includes(type)? type : (type||"untyped");
+  let block = (id!=null) ? state.blocks.find(b=>b.id===id) : null;
+  if(block){ block.body=rtrimAll(body); block.type=type; }            // update existing -> palette + any seq uses
+  else{                                                               // brand-new block designed in the Helper
+    block={ id:bid++, body:rtrimAll(body), type, idx:state.blocks.length };
+    state.blocks.push(block); state.editId=block.id;
+    helperFrame.contentWindow.postMessage({kind:"pb:setid", id:block.id},"*");
+  }
+  if(!state.seq.some(it=>it.block===block)) state.seq.push({block, uid:uidc++});   // ensure it is in the sequence
+  renderTabs(); renderPalette(); renderSeq(); rebuild();
+  showView("builder");
+  toast("Saved to sequence & palette ✓","good");
+}
+window.addEventListener("message", e=>{
+  if(e.source!==helperFrame.contentWindow) return;
+  const d=e.data||{};
+  if(d.kind==="pb:ready"){
+    state.helperReady=true;
+    if(state.pendingLoad){ helperFrame.contentWindow.postMessage(state.pendingLoad,"*"); state.pendingLoad=null; }
+    sendPools();
+  }
+  else if(d.kind==="pb:save") applyHelperSave(d.body, d.type, d.id);
+  else if(d.kind==="pb:poolsloaded") cachePools(d.pools);   // helper loaded them by hand; remember for next time
+});
+
+/* ---------- pools: fetched once here, handed to the Helper over the bridge ----------
+   Fetching in the parent keeps one source of truth and avoids relative-URL and
+   picker quirks inside the about:srcdoc iframe. Served over file:// the fetches
+   fail, so the cache (or the Helper's own "Load pools…") takes over. */
+const POOL_PATHS={ particles:"pools/particles.txt", sides:"pools/sideframes.txt", tb:"pools/tbframes.txt", stamps:"pools/stamps.txt", blocks:"pools/blocks.txt" };
+const POOL_LS="pb_pools_v1";
+function cachePools(pools){
+  if(!pools || !Object.keys(pools).length) return;
+  state.pools = Object.assign({}, state.pools||{}, pools);
+  try{ localStorage.setItem(POOL_LS, JSON.stringify(state.pools)); }catch(_){}
+  sendPools();
+}
+function sendPools(){
+  if(state.pools && state.helperReady && helperFrame.contentWindow)
+    helperFrame.contentWindow.postMessage({kind:"pb:pools", pools:state.pools},"*");
+}
+async function initPools(){
+  try{ const c=JSON.parse(localStorage.getItem(POOL_LS)||"null"); if(c) state.pools=c; }catch(_){}
+  const fetched={};
+  await Promise.all(Object.keys(POOL_PATHS).map(async k=>{
+    try{
+      const r=await fetch(POOL_PATHS[k],{cache:"no-store"});
+      if(r.ok){ const t=await r.text(); if(t.trim()) fetched[k]=t; }
+    }catch(_){}                                   // file:// or missing folder: keep whatever was cached
+  }));
+  cachePools(fetched);
+  sendPools();
+  if(state.pools && state.pools.blocks && !state.blocks.length) loadLibraryText(state.pools.blocks, "pools/blocks.txt");
+}
+function loadLibraryText(text, name){
+  const entries=parseEntries(expandTabs(text,8));
+  if(!entries.length) return 0;
+  state.blocks=entries.map((e,i)=>({ id:bid++, body:rtrimAll(e.body), type:TYPES.includes(e.type)?e.type:(e.type||"untyped"), idx:i }));
+  renderTabs(); renderPalette();
+  if(name) toast("Loaded "+state.blocks.length+" block(s) from "+name,"good");
+  return state.blocks.length;
+}
+
+renderTabs(); renderPalette(); renderSeq(); rebuild();
+initPools();
+</script>
+</body>
+</html>

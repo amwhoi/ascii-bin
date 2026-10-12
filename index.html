@@ -1,0 +1,822 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ascii·index (modern v2)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  :root {
+    --bg: #fff; --surface: #fff; --soft: #f1f3f4; --hoverbg: #f8f9fa; --codebg: #f8f9fa;
+    --fg: #202124; --dim: #5f6368; --line: #dadce0;
+    --shadow-s: 0 1px 2px rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15);
+    --shadow-m: 0 1px 6px rgba(32,33,36,.28);
+    --shadow-l: 0 8px 28px rgba(32,33,36,.28);
+    --inv-bg: #202124; --inv-fg: #fff;
+    --mono: Consolas, "Cascadia Mono", "Courier New", monospace;
+  }
+  html[data-theme=dark] {
+    --bg: #202124; --surface: #303134; --soft: #3c4043; --hoverbg: #28292c; --codebg: #17181a;
+    --fg: #e8eaed; --dim: #9aa0a6; --line: #5f6368;
+    --shadow-s: 0 1px 3px rgba(0,0,0,.55);
+    --shadow-m: 0 2px 8px rgba(0,0,0,.6);
+    --shadow-l: 0 10px 32px rgba(0,0,0,.65);
+    --inv-bg: #e8eaed; --inv-fg: #202124;
+  }
+  [hidden] { display: none !important; }
+  html, body { background: var(--bg); color: var(--fg); }
+  body { font: 14px/1.5 "Segoe UI", Roboto, Arial, sans-serif; }
+
+  ::-webkit-scrollbar { width: 12px; height: 12px; }
+  ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 999px; border: 3px solid var(--bg); }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  button, input, select { font: inherit; color: inherit; }
+  button:focus-visible, select:focus-visible, .chip:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+
+  .btn {
+    border: 1px solid var(--line); background: var(--surface); border-radius: 999px;
+    padding: 8px 18px; cursor: pointer; white-space: nowrap;
+    transition: background .15s, box-shadow .2s, border-color .2s;
+  }
+  .btn:hover { background: var(--hoverbg); box-shadow: var(--shadow-s); }
+  .btn.primary { background: var(--inv-bg); color: var(--inv-fg); border-color: transparent; }
+  .btn.primary:hover { background: var(--inv-bg); box-shadow: var(--shadow-m); }
+  .iconbtn {
+    width: 40px; height: 40px; flex: none; border: none; border-radius: 50%;
+    background: transparent; cursor: pointer; font-size: 16px; line-height: 1;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: background .15s;
+  }
+  .iconbtn:hover { background: var(--soft); }
+  select {
+    border: 1px solid var(--line); background: var(--surface); border-radius: 999px;
+    padding: 7px 14px; cursor: pointer; transition: background .15s, box-shadow .2s;
+  }
+  select:hover { background: var(--hoverbg); }
+
+  header {
+    position: sticky; top: 0; z-index: 5; background: var(--bg);
+    border-bottom: 1px solid var(--line);
+    padding: 12px 24px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .logo { font-size: 18px; font-weight: 600; letter-spacing: .3px; white-space: nowrap; }
+  .logo span { color: var(--dim); font-weight: 400; }
+
+  .qwrap { flex: 1 1 300px; display: flex; justify-content: center; }
+  .pill {
+    display: flex; align-items: center; gap: 10px;
+    width: min(640px, 100%); height: 44px; padding: 0 6px 0 16px;
+    border: 1px solid var(--line); border-radius: 22px; background: var(--surface);
+    transition: box-shadow .2s, border-color .2s;
+  }
+  .pill:hover, .pill:focus-within { box-shadow: var(--shadow-m); border-color: transparent; }
+  .pill svg { flex: none; color: var(--dim); }
+  .pill input { flex: 1; min-width: 60px; border: none; background: transparent; }
+  .pill input:focus { outline: none; }
+  #qclear { width: 32px; height: 32px; font-size: 14px; color: var(--dim); }
+  ::placeholder { color: var(--dim); opacity: .8; }
+
+  #stats { color: var(--dim); font-size: 13px; }
+  .sp { flex: 1; }
+
+  #chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line);
+    background: var(--surface); cursor: pointer; font-size: 13px; user-select: none;
+    transition: background .15s, box-shadow .2s, border-color .2s, color .15s;
+  }
+  .chip:hover { background: var(--hoverbg); box-shadow: var(--shadow-s); }
+  .chip.on { background: var(--inv-bg); color: var(--inv-fg); border-color: transparent; }
+  .chip .n { opacity: .6; font-size: 12px; }
+
+  #grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 16px; padding: 20px 24px 48px;
+  }
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+    overflow: hidden; cursor: pointer; display: flex; flex-direction: column;
+    transition: box-shadow .2s, transform .15s, border-color .2s;
+  }
+  .card:hover { box-shadow: var(--shadow-m); transform: translateY(-2px); border-color: transparent; }
+  .card.hide { display: none; }
+  .prev { height: 168px; overflow: hidden; padding: 10px; flex: none; }
+  .prev canvas { display: block; }
+  .cmeta { padding: 2px 10px 0 14px; display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  .cmeta .dims { color: var(--dim); font: 11.5px var(--mono); }
+  .copy {
+    margin-left: auto; border: none; background: var(--soft); border-radius: 999px;
+    padding: 5px 14px; font-size: 12px; cursor: pointer; transition: background .15s, opacity .15s;
+  }
+  .copy:hover { background: var(--line); }
+  @media (hover: hover) {
+    .card .copy { opacity: 0; }
+    .card:hover .copy, .card:focus-within .copy { opacity: 1; }
+  }
+  .ctags {
+    display: flex; gap: 6px; align-items: center;
+    padding: 8px 14px 12px; overflow: hidden; white-space: nowrap;
+  }
+  .tagpill { flex: none; background: var(--soft); border-radius: 999px; padding: 2px 10px; font-size: 11.5px; }
+  .cdesc, .untag { color: var(--dim); font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
+  .untag { font-style: italic; }
+
+  #empty {
+    margin: 10vh auto 0; width: min(560px, calc(100% - 48px));
+    border: 2px dashed var(--line); border-radius: 24px; background: var(--surface);
+    padding: 56px 32px; text-align: center;
+    display: flex; flex-direction: column; gap: 18px; align-items: center;
+  }
+  #empty svg { color: var(--dim); }
+  #empty .big { font-size: 17px; font-weight: 500; }
+  #empty .note { color: var(--dim); font-size: 12.5px; line-height: 1.9; }
+  #empty code { font-family: var(--mono); }
+
+  #drop { position: fixed; inset: 0; background: var(--bg); display: none; z-index: 50; padding: 24px; }
+  #drop.on { display: block; }
+  #drop .in {
+    border: 2px dashed var(--fg); border-radius: 24px; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 500; letter-spacing: 1px;
+  }
+
+  #toast {
+    position: fixed; left: 50%; bottom: 28px; z-index: 60;
+    transform: translateX(-50%) translateY(12px);
+    background: var(--inv-bg); color: var(--inv-fg);
+    padding: 12px 20px; border-radius: 10px; box-shadow: var(--shadow-l);
+    font-size: 13.5px; max-width: 90vw; text-align: center;
+    opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
+  }
+  #toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  #viewer {
+    position: fixed; inset: 0; z-index: 40; display: none; padding: 24px;
+    background: rgba(32,33,36,.55); backdrop-filter: blur(3px);
+  }
+  #viewer.on { display: flex; }
+  .panel {
+    width: 100%; max-width: 1100px; margin: 0 auto;
+    background: var(--bg); border-radius: 28px; box-shadow: var(--shadow-l);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .vtop { display: flex; gap: 6px; align-items: center; padding: 14px 20px 10px; flex-wrap: wrap; }
+  #vlabel { font-size: 15px; font-weight: 600; }
+  #vlabel .dims { color: var(--dim); font: 12px var(--mono); font-weight: 400; margin-left: 8px; }
+  #vpos { color: var(--dim); font-size: 13px; min-width: 64px; text-align: center; }
+  #vpre {
+    flex: 1; overflow: auto; margin: 0 20px; padding: 16px;
+    background: var(--codebg); border-radius: 16px;
+    font-family: var(--mono); font-size: 11px; line-height: 1.1;
+    tab-size: 8; white-space: pre;
+  }
+  #vpre::-webkit-scrollbar-thumb { border-color: var(--codebg); }
+  .vmeta { display: flex; gap: 12px; padding: 14px 20px 4px; flex-wrap: wrap; align-items: flex-end; }
+  .field { flex: 1 1 280px; display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--dim); padding-left: 6px; }
+  .field input {
+    border: 1px solid var(--line); border-radius: 12px; background: var(--surface);
+    padding: 10px 14px; transition: border-color .15s, box-shadow .2s;
+  }
+  .field input:focus { outline: none; border-color: var(--fg); }
+  #vsaved { color: var(--dim); font-size: 12.5px; margin-bottom: 12px; min-width: 56px; opacity: 0; transition: opacity .5s; }
+  #vsaved.on { opacity: 1; transition: none; }
+  .vhint { color: var(--dim); font-size: 12px; padding: 2px 26px 16px; }
+
+  @media (max-width: 600px) {
+    header { padding: 10px 12px; }
+    #grid { padding: 14px 12px 40px; }
+    #viewer { padding: 10px; }
+    .panel { border-radius: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<header id="hdr" hidden>
+  <div class="row">
+    <div class="logo">ascii<span>·index</span></div>
+    <div class="qwrap">
+      <div class="pill">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="q" type="text" placeholder="Search tags &amp; descriptions · #tag = tags only" autocomplete="off" spellcheck="false">
+        <button id="qclear" class="iconbtn" title="clear" hidden>✕</button>
+      </div>
+    </div>
+    <button id="bimport" class="btn" title="import a .txt collection">Import</button>
+    <button id="bexport" class="btn" title="download the updated .txt">Export</button>
+    <button id="btheme" class="iconbtn" title="toggle dark mode">☾</button>
+  </div>
+  <div class="row">
+    <span id="stats"></span>
+    <span class="sp"></span>
+    <select id="sort" title="sort order">
+      <option value="file">File order</option>
+      <option value="big">Largest first</option>
+      <option value="small">Smallest first</option>
+    </select>
+    <button id="brandom" class="btn" title="open a random art">Random</button>
+  </div>
+  <div id="chips"></div>
+</header>
+
+<section id="empty">
+  <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+  <div class="big">Drop database here</div>
+  <button id="bimport2" class="btn primary">Choose a file</button>
+  <div class="note">Expected format, repeated per art:<br><code>&lt;ascii art&gt;</code><br><code>tags:</code><br><code>description:</code><br><code>===EOF===</code></div>
+</section>
+
+<main id="grid"></main>
+
+<div id="viewer">
+  <div class="panel">
+    <div class="vtop">
+      <span id="vlabel"></span>
+      <span class="sp"></span>
+      <button id="vcopy" class="btn">Copy art</button>
+      <button id="vminus" class="iconbtn" title="smaller text">a−</button>
+      <button id="vplus" class="iconbtn" title="bigger text">a+</button>
+      <button id="vprev" class="iconbtn" title="previous">←</button>
+      <span id="vpos"></span>
+      <button id="vnext" class="iconbtn" title="next">→</button>
+      <button id="vclose" class="iconbtn" title="close (esc)">✕</button>
+    </div>
+    <pre id="vpre"></pre>
+    <div class="vmeta">
+      <div class="field">
+        <label for="vtags">Tags</label>
+        <input id="vtags" placeholder="comma, separated, tags" spellcheck="false">
+      </div>
+      <div class="field">
+        <label for="vdesc">Description</label>
+        <input id="vdesc" placeholder="one line, free text" spellcheck="false">
+      </div>
+      <span id="vsaved">Saved ✓</span>
+    </div>
+    <div class="vhint">enter: tags → description → next art&nbsp;&nbsp;·&nbsp;&nbsp;←/→: navigate&nbsp;&nbsp;·&nbsp;&nbsp;esc: close&nbsp;&nbsp;·&nbsp;&nbsp;edits autosave locally — use Export to update the .txt</div>
+  </div>
+</div>
+
+<div id="drop"><div class="in">Drop to import</div></div>
+<div id="toast"></div>
+<input id="file" type="file" accept=".txt,text/plain" hidden>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+// localStorage: per-art tag/description edits (keyed by art hash), the last import, the theme
+const LSE = 'ascii_index_edits_v1', LSF = 'ascii_index_file_v1', LST = 'ascii_index_theme_modern';
+
+let blocks = [];                 // {art, lines, tags, desc, w, h, hash}
+let eol = '\n';
+let fileName = 'asciiart_db.txt';
+let cards = [];
+let charW = 6;
+let edits = {};
+const filter = { q: '', tags: new Set(), untagged: false };
+let sortMode = 'file';
+let viewIdx = -1;
+let vFS = 11;
+
+try { edits = JSON.parse(localStorage.getItem(LSE)) || {}; } catch (e) {}
+
+/* ---------- helpers ---------- */
+
+function debounce(fn, ms) {
+  let t;
+  return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
+}
+
+function hashStr(s) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(16).padStart(8, '0') + '-' + s.length;
+}
+
+function maxWidth(lines) {
+  let m = 0;
+  for (const l of lines) {
+    let w = 0;
+    for (const ch of l) w = ch === '\t' ? (Math.floor(w / 8) + 1) * 8 : w + 1;
+    if (w > m) m = w;
+  }
+  return m;
+}
+
+function tagList(s) {
+  return s.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+}
+
+function taggedCount() {
+  return blocks.reduce((n, b) => n + (b.tags || b.desc ? 1 : 0), 0);
+}
+
+let toastT;
+function toast(msg) {
+  const el = $('toast');
+  el.textContent = msg;
+  el.classList.add('on');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => el.classList.remove('on'), 2800);
+}
+
+/* ---------- parse / serialize ---------- */
+
+// "blank" including invisible non-\s chars seen in real files: braille blank, zwsp, bom
+const BLANKISH = new RegExp('^[\\s\\u2800\\u200B\\uFEFF]*$');
+const cleanMeta = s => s.replace(new RegExp('[\\u2800\\u200B\\uFEFF]', 'g'), ' ').trim();
+
+function finishBlock(lines) {
+  let ti = -1, di = -1;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (di === -1 && /^description:/.test(lines[i])) di = i;
+    else if (di !== -1 && /^tags:/.test(lines[i])) { ti = i; break; }
+  }
+  let artLines, tags = '', desc = '';
+  if (ti !== -1 && di !== -1 && ti < di) {
+    tags = cleanMeta(lines[ti].slice(5));
+    desc = cleanMeta(lines[di].slice(12));
+    // keep stray art lines found after the description: line (salvaged separator tails)
+    artLines = lines.slice(0, ti).concat(lines.slice(di + 1));
+  } else {
+    artLines = lines.slice();
+  }
+  while (artLines.length && !artLines[0].trim()) artLines.shift();
+  while (artLines.length && !artLines[artLines.length - 1].trim()) artLines.pop();
+  if (!artLines.length && !tags && !desc) return null;
+  const art = artLines.join('\n');
+  return { art, lines: artLines, tags, desc, w: maxWidth(artLines), h: artLines.length, hash: hashStr(art) };
+}
+
+function parseFile(text) {
+  const useCrlf = text.includes('\r\n');
+  const rows = text.replace(/\r\n?/g, '\n').split('\n');
+  const out = [];
+  let cur = [];
+  for (const row of rows) {
+    const m = /^===EOF===(.*)$/.exec(row);
+    if (m) {
+      // art glued onto the separator line — put it back at its original column
+      if (!BLANKISH.test(m[1])) cur.push(' '.repeat(9) + m[1]);
+      const b = finishBlock(cur);
+      if (b) out.push(b);
+      cur = [];
+    } else {
+      cur.push(row);
+    }
+  }
+  const last = finishBlock(cur);
+  if (last) out.push(last);
+  return { blocks: out, eol: useCrlf ? '\r\n' : '\n' };
+}
+
+function serialize() {
+  const parts = blocks.map(b =>
+    b.art + '\ntags:' + (b.tags ? ' ' + b.tags : '') +
+    '\ndescription:' + (b.desc ? ' ' + b.desc : '') + '\n===EOF===\n');
+  let text = parts.join('\n');
+  if (eol === '\r\n') text = text.replace(/\n/g, '\r\n');
+  return text;
+}
+
+/* ---------- data loading ---------- */
+
+function loadData(text, name, msg) {
+  const r = parseFile(text);
+  if (!r.blocks.length) { toast('No ===EOF=== blocks found — is this the right file?'); return false; }
+  blocks = r.blocks;
+  eol = r.eol;
+  if (name) fileName = name;
+  let applied = 0;
+  for (const b of blocks) {
+    const e = edits[b.hash];
+    if (e) {
+      if (!b.tags && e.t) { b.tags = e.t; applied++; }
+      if (!b.desc && e.d) { b.desc = e.d; applied++; }
+    }
+  }
+  $('hdr').hidden = false;
+  $('empty').hidden = true;
+  buildCards();
+  renderChips();
+  applyFilter();
+  toast(`${msg} · ${blocks.length} arts` + (applied ? ` · ${applied} local edits applied` : ''));
+  return true;
+}
+
+function importText(text, name) {
+  if (loadData(text, name, 'Imported ' + name)) {
+    try { localStorage.setItem(LSF, JSON.stringify({ n: name, t: text })); } catch (e) {}
+  }
+}
+
+function readFile(f) {
+  const r = new FileReader();
+  r.onload = () => importText(r.result, f.name);
+  r.readAsText(f);
+}
+
+/* ---------- cards ---------- */
+
+function updateCardMeta(card, b) {
+  const t = card.querySelector('.ctags');
+  t.textContent = '';
+  const tags = tagList(b.tags);
+  if (tags.length) {
+    for (const name of tags) {
+      const s = document.createElement('span');
+      s.className = 'tagpill';
+      s.textContent = name;
+      t.appendChild(s);
+    }
+  } else {
+    const s = document.createElement('span');
+    s.className = 'untag';
+    s.textContent = 'untagged';
+    t.appendChild(s);
+  }
+  if (b.desc) {
+    const d = document.createElement('span');
+    d.className = 'cdesc';
+    d.textContent = b.desc;
+    t.appendChild(d);
+  }
+  t.title = (b.tags ? b.tags + '\n' : '') + (b.desc || '');
+}
+
+function buildCards() {
+  const g = $('grid');
+  g.textContent = '';
+  cards = blocks.map((b, i) => {
+    const c = document.createElement('div');
+    c.className = 'card';
+    const pv = document.createElement('div');
+    pv.className = 'prev';
+    pv.appendChild(document.createElement('canvas'));
+    const m = document.createElement('div');
+    m.className = 'cmeta';
+    m.innerHTML = `<span>#${i + 1}</span><span class="dims">${b.w}×${b.h}</span><button class="copy">copy</button>`;
+    const t = document.createElement('div');
+    t.className = 'ctags';
+    c.append(pv, m, t);
+    updateCardMeta(c, b);
+    m.querySelector('.copy').onclick = e => { e.stopPropagation(); copyArt(b.art, e.target); };
+    c.onclick = () => openViewer(i);
+    g.appendChild(c);
+    return c;
+  });
+  setTimeout(fillPreviews, 0); // not rAF — must also draw in hidden/background tabs
+}
+
+const PREV_FONT = '10px Consolas, "Cascadia Mono", "Courier New", monospace';
+const PREV_PAD = 10, PREV_H = 168;
+
+function measureCharW() {
+  const ctx = document.createElement('canvas').getContext('2d');
+  ctx.font = PREV_FONT;
+  return ctx.measureText('M'.repeat(50)).width / 50 || 6;
+}
+
+function expandTabs(l) {
+  if (!l.includes('\t')) return l;
+  let out = '';
+  for (const ch of l) {
+    if (ch === '\t') out += ' '.repeat(8 - (out.length % 8));
+    else out += ch;
+  }
+  return out;
+}
+
+// thumbnails are drawn to canvas bitmaps: 272 cards of live scaled text
+// is millions of glyphs and makes the page unscrollable
+function fillPreviews() {
+  if (!cards.length) return;
+  const sample = cards.find(c => !c.classList.contains('hide')) || cards[0];
+  let boxW = sample.querySelector('.prev').clientWidth - 2 * PREV_PAD;
+  if (boxW <= 0) boxW = 238;
+  const boxH = PREV_H - 2 * PREV_PAD;
+  const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+  const fg = getComputedStyle(document.body).color;
+  const mctx = document.createElement('canvas').getContext('2d');
+  mctx.font = PREV_FONT;
+  cards.forEach((c, i) => {
+    const b = blocks[i];
+    const cv = c.querySelector('canvas');
+    // scale to fit BOTH dimensions so the whole art is always visible, centered in
+    // the box. Line widths are measured in px (tabs expanded, trailing blanks off):
+    // cols × charW estimates under-count fallback glyphs (braille, box drawing),
+    // and phantom trailing whitespace would shrink the whole thumbnail
+    if (!b.pv) {
+      const lines = b.lines.map(l => expandTabs(l).replace(/[ ⠀]+$/, ''));
+      let w = 1;
+      for (const l of lines) w = Math.max(w, mctx.measureText(l).width);
+      b.pv = { lines, w };
+    }
+    const s = Math.min(1, boxW / b.pv.w, boxH / (Math.max(1, b.h) * 10));
+    cv.width = Math.round(boxW * dpr);
+    cv.height = Math.round(boxH * dpr);
+    cv.style.width = boxW + 'px';
+    cv.style.height = boxH + 'px';
+    const ctx = cv.getContext('2d');
+    ctx.scale(dpr, dpr);
+    ctx.translate((boxW - b.pv.w * s) / 2, (boxH - b.h * 10 * s) / 2);
+    ctx.scale(s, s);
+    ctx.font = PREV_FONT;
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = fg;
+    for (let j = 0; j < b.h; j++) ctx.fillText(b.pv.lines[j], 0, j * 10);
+  });
+}
+
+/* ---------- filter / sort ---------- */
+
+function matches(b) {
+  if (filter.untagged && b.tags.trim()) return false;
+  if (filter.tags.size) {
+    const list = tagList(b.tags);
+    for (const t of filter.tags) if (!list.includes(t)) return false;
+  }
+  if (filter.q) {
+    const hay = (b.tags + ' ' + b.desc).toLowerCase();
+    const tagHay = b.tags.toLowerCase();
+    for (const tok of filter.q.toLowerCase().split(/\s+/).filter(Boolean)) {
+      if (tok[0] === '#') {
+        if (tok.length > 1 && !tagHay.includes(tok.slice(1))) return false;
+      } else if (!hay.includes(tok)) return false;
+    }
+  }
+  return true;
+}
+
+function computeFiltered() {
+  const idx = [];
+  blocks.forEach((b, i) => { if (matches(b)) idx.push(i); });
+  const area = i => blocks[i].w * blocks[i].h;
+  if (sortMode === 'big') idx.sort((a, b) => area(b) - area(a));
+  else if (sortMode === 'small') idx.sort((a, b) => area(a) - area(b));
+  return idx;
+}
+
+function applyFilter() {
+  const f = computeFiltered();
+  const rank = new Map(f.map((bi, r) => [bi, r]));
+  cards.forEach((c, i) => {
+    const r = rank.get(i);
+    if (r === undefined) c.classList.add('hide');
+    else { c.classList.remove('hide'); c.style.order = r; }
+  });
+  $('stats').textContent = `${blocks.length} arts · ${taggedCount()} tagged · showing ${f.length}`;
+}
+
+function renderChips() {
+  const counts = new Map();
+  let untagged = 0;
+  blocks.forEach(b => {
+    const list = tagList(b.tags);
+    if (!list.length) untagged++;
+    list.forEach(t => counts.set(t, (counts.get(t) || 0) + 1));
+  });
+  for (const t of [...filter.tags]) if (!counts.has(t)) filter.tags.delete(t);
+  if (!untagged) filter.untagged = false;
+
+  const wrap = $('chips');
+  wrap.textContent = '';
+  const mk = (label, count, on, fn) => {
+    const el = document.createElement('span');
+    el.className = 'chip' + (on ? ' on' : '');
+    el.innerHTML = `${label} <span class="n">${count}</span>`;
+    el.onclick = fn;
+    wrap.appendChild(el);
+  };
+  if (untagged) mk('untagged', untagged, filter.untagged, () => {
+    filter.untagged = !filter.untagged;
+    if (filter.untagged) filter.tags.clear();
+    renderChips(); applyFilter();
+  });
+  [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .forEach(([name, count]) => mk(name, count, filter.tags.has(name), () => {
+      filter.untagged = false;
+      filter.tags.has(name) ? filter.tags.delete(name) : filter.tags.add(name);
+      renderChips(); applyFilter();
+    }));
+  wrap.hidden = !wrap.childElementCount;
+}
+
+/* ---------- copy ---------- */
+
+async function copyArt(text, btn) {
+  let ok = false;
+  try { await navigator.clipboard.writeText(text); ok = true; }
+  catch (e) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { ok = document.execCommand('copy'); } catch (e2) {}
+    ta.remove();
+  }
+  if (btn) {
+    const old = btn.textContent;
+    btn.textContent = ok ? 'copied ✓' : 'failed';
+    setTimeout(() => { btn.textContent = old; }, 900);
+  }
+}
+
+/* ---------- viewer ---------- */
+
+function openViewer(i) {
+  viewIdx = i;
+  const b = blocks[i];
+  $('viewer').classList.add('on');
+  $('vlabel').innerHTML = `#${i + 1}<span class="dims">${b.w}×${b.h}</span>`;
+  $('vpre').textContent = b.art;
+  $('vpre').style.fontSize = vFS + 'px';
+  $('vtags').value = b.tags;
+  $('vdesc').value = b.desc;
+  const f = computeFiltered(), p = f.indexOf(i);
+  $('vpos').textContent = (p === -1 ? '—' : p + 1) + '/' + f.length;
+  document.body.style.overflow = 'hidden';
+}
+
+function closeViewer() {
+  $('viewer').classList.remove('on');
+  viewIdx = -1;
+  document.body.style.overflow = '';
+  renderChips();
+  applyFilter();
+}
+
+function step(dir) {
+  const f = computeFiltered();
+  if (!f.length) { closeViewer(); return; }
+  let pos = f.indexOf(viewIdx);
+  if (pos === -1) {
+    // current art just dropped out of the filter (e.g. it was tagged while
+    // the "untagged" chip is active) — the item now at its old spot is "next"
+    pos = f.findIndex(i => i > viewIdx);
+    if (pos === -1) pos = dir > 0 ? 0 : f.length - 1;
+    else if (dir < 0) pos--;
+  } else {
+    pos += dir;
+  }
+  pos = (pos + f.length) % f.length;
+  openViewer(f[pos]);
+}
+
+const storeEdits = debounce(() => {
+  try { localStorage.setItem(LSE, JSON.stringify(edits)); } catch (e) {}
+}, 250);
+
+let savedT;
+function flashSaved() {
+  const el = $('vsaved');
+  el.classList.add('on');
+  clearTimeout(savedT);
+  savedT = setTimeout(() => el.classList.remove('on'), 800);
+}
+
+function editField(key, value) {
+  if (viewIdx < 0) return;
+  const b = blocks[viewIdx];
+  b[key] = value.trim();
+  edits[b.hash] = { t: b.tags, d: b.desc };
+  storeEdits();
+  flashSaved();
+  updateCardMeta(cards[viewIdx], b);
+}
+
+/* ---------- wiring ---------- */
+
+$('q').addEventListener('input', debounce(() => {
+  filter.q = $('q').value;
+  $('qclear').hidden = !$('q').value;
+  applyFilter();
+}, 80));
+
+$('qclear').onclick = () => {
+  $('q').value = '';
+  $('qclear').hidden = true;
+  filter.q = '';
+  applyFilter();
+  $('q').focus();
+};
+
+$('sort').onchange = () => { sortMode = $('sort').value; applyFilter(); };
+
+$('brandom').onclick = () => {
+  const f = computeFiltered();
+  if (f.length) openViewer(f[Math.floor(Math.random() * f.length)]);
+};
+
+function applyTheme(t) {
+  document.documentElement.dataset.theme = t;
+  $('btheme').textContent = t === 'dark' ? '☀' : '☾';
+}
+
+$('btheme').onclick = () => {
+  const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  applyTheme(t);
+  try { localStorage.setItem(LST, t); } catch (e) {}
+  fillPreviews(); // thumbnails are canvas bitmaps in the theme's ink color
+};
+
+$('bimport').onclick = $('bimport2').onclick = () => $('file').click();
+$('file').onchange = () => {
+  if ($('file').files[0]) readFile($('file').files[0]);
+  $('file').value = '';
+};
+
+$('bexport').onclick = () => {
+  if (!blocks.length) { toast('Nothing to export'); return; }
+  const text = serialize();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+  a.download = fileName;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  try { localStorage.setItem(LSF, JSON.stringify({ n: fileName, t: text })); } catch (e) {}
+  toast(`Exported ${fileName} · ${blocks.length} arts · ${taggedCount()} tagged`);
+};
+
+$('vcopy').onclick = e => { if (viewIdx >= 0) copyArt(blocks[viewIdx].art, e.target); };
+$('vprev').onclick = () => step(-1);
+$('vnext').onclick = () => step(1);
+$('vclose').onclick = closeViewer;
+$('vminus').onclick = () => { vFS = Math.max(5, vFS - 1); $('vpre').style.fontSize = vFS + 'px'; };
+$('vplus').onclick = () => { vFS = Math.min(24, vFS + 1); $('vpre').style.fontSize = vFS + 'px'; };
+$('vtags').addEventListener('input', () => editField('tags', $('vtags').value));
+$('vdesc').addEventListener('input', () => editField('desc', $('vdesc').value));
+$('vtags').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); $('vdesc').focus(); }
+});
+$('vdesc').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); step(1); $('vtags').focus(); }
+});
+$('viewer').addEventListener('click', e => { if (e.target === $('viewer')) closeViewer(); });
+
+document.addEventListener('keydown', e => {
+  const inInput = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
+  if ($('viewer').classList.contains('on')) {
+    if (e.key === 'Escape') closeViewer();
+    else if (!inInput) {
+      if (e.key === 'ArrowLeft') step(-1);
+      else if (e.key === 'ArrowRight') step(1);
+    }
+  } else {
+    if (e.key === '/' && !inInput) { e.preventDefault(); $('q').focus(); }
+    else if (e.key === 'Escape' && e.target === $('q')) {
+      $('q').value = ''; $('qclear').hidden = true; filter.q = ''; applyFilter(); $('q').blur();
+    }
+  }
+});
+
+window.addEventListener('resize', debounce(fillPreviews, 150));
+
+/* drag & drop anywhere */
+let dragN = 0;
+const hasFile = e => e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files');
+window.addEventListener('dragenter', e => { if (hasFile(e)) { e.preventDefault(); dragN++; $('drop').classList.add('on'); } });
+window.addEventListener('dragover', e => { if (hasFile(e)) e.preventDefault(); });
+window.addEventListener('dragleave', e => { if (hasFile(e)) { dragN = Math.max(0, dragN - 1); if (!dragN) $('drop').classList.remove('on'); } });
+window.addEventListener('drop', e => {
+  if (!hasFile(e)) return;
+  e.preventDefault();
+  dragN = 0;
+  $('drop').classList.remove('on');
+  if (e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0]);
+});
+
+/* ---------- startup ---------- */
+
+try { applyTheme(localStorage.getItem(LST) === 'dark' ? 'dark' : 'light'); } catch (e) { applyTheme('light'); }
+
+(async function init() {
+  // served over http next to the txt → load it automatically;
+  // opened via file:// → fetch fails, fall back to last import, then manual
+  try {
+    const res = await fetch('asciiart_db.txt', { cache: 'no-store' });
+    if (res.ok) {
+      const text = await res.text();
+      if (loadData(text, 'asciiart_db.txt', 'Auto-loaded asciiart_db.txt')) return;
+    }
+  } catch (e) {}
+  try {
+    const s = JSON.parse(localStorage.getItem(LSF));
+    if (s && s.t && loadData(s.t, s.n, 'Restored last import')) return;
+  } catch (e) {}
+})();
+
+/* debug handle */
+window.AI = { get blocks() { return blocks; }, computeFiltered, filter, serialize, parseFile };
+</script>
+</body>
+</html>
