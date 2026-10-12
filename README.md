@@ -1,8 +1,8 @@
-<h1 align="center"><strong>ascii-bin<strong></h1>
+<h1 align="center"><strong>ascii-bin</strong></h1>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/amwhoi/ascii-bin/main/assets/preview1.png" width="49%">
-  <img src="https://raw.githubusercontent.com/amwhoi/ascii-bin/main/assets/preview2.png" canvas" width="49%">
+  <img src="https://raw.githubusercontent.com/amwhoi/ascii-bin/main/assets/preview1.png" alt="ASCII art index: searchable gallery of 272 arts with live thumbnails and tag filters" width="49%">
+  <img src="https://raw.githubusercontent.com/amwhoi/ascii-bin/main/assets/preview2.png" alt="ASCII art editor: pools, particle density and the frame pipeline beside the editing canvas" width="49%">
 </p>
 
 <p align="center">
