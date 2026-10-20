@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -797,7 +797,7 @@ window.addEventListener('drop', e => {
 
 /* ---------- startup ---------- */
 
-try { applyTheme(localStorage.getItem(LST) === 'dark' ? 'dark' : 'light'); } catch (e) { applyTheme('light'); }
+try { applyTheme(localStorage.getItem(LST) === 'light' ? 'light' : 'dark'); } catch (e) { applyTheme('dark'); }   // dark unless the user picked light
 
 (async function init() {
   // served over http next to the txt → load it automatically;

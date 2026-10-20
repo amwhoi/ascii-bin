@@ -1,3 +1,43 @@
+// pools.txt - every pool in one file. A line [[pool: NAME]] starts a category;
+// inside it, entries are separated by ===EOF=== lines (optional type: line last).
+// Categories: kits, blocks, particles, sideframes, tbframes, stamps, templates, combos
+
+[[pool: kits]]
+─│┌┐└┘┬┴├┤┼
+type:single
+===EOF===
+═║╔╗╚╝╦╩╠╣╬
+type:double
+===EOF===
+━┃┏┓┗┛┳┻┣┫╋
+type:heavy
+===EOF===
+─│╭╮╰╯┬┴├┤┼
+type:rounded
+===EOF===
+╌╎┌┐└┘┬┴├┤┼
+type:dashed
+===EOF===
+╍╏┏┓┗┛┳┻┣┫╋
+type:heavy-dashed
+===EOF===
+═│╒╕╘╛╤╧╞╡╪
+type:double-h
+===EOF===
+─║╓╖╙╜╥╨╟╢╫
+type:double-v
+===EOF===
+-|+++++++++
+type:ascii
+===EOF===
+=|+++++++++
+type:ascii-equals
+===EOF===
+###########
+type:hash
+===EOF===
+
+[[pool: blocks]]
                ______                          *                *			*			*			  *           .-"""-.      *
    *          '-._   ```"""---.._  			*								*	   ,                 (_ _    \               *
            ,-----.:___           `\  ,;;;,                              .       *                  *                              /|  ____     _      )= `)  ) ,"";,                 *
@@ -171,4 +211,163 @@ type:art
 ║    .           .     +       .    +    .    +  .   .   +   .     .       +     .     .    .    .           .     +       .    +    .    +  .    ║
 
 type:art
+===EOF===
+
+[[pool: particles]]
+*
+===EOF===
+.*+
+===EOF===
++*
+===EOF===
+. ` ' :
+===EOF===
+*+.x
+===EOF===
+
+[[pool: sideframes]]
+│
+===EOF===
+║
+===EOF===
+┃
+===EOF===
+▌
+===EOF===
+▏
+===EOF===
+|
+===EOF===
+
+[[pool: tbframes]]
+╭──────────────────────────────────────────────────────────────────────────────────────────────────╮
+│                               <>                                 <>                              │
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+type:top
+===EOF===
+╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                          -=  T I T L E  =-                                          ║
+╠══════════════════════════════════════════════════════════════════════════════════════════════════╣
+type:top
+===EOF===
++----------------------------------------------------------------------------------------------------+
+| SECTION                                                                                            |
++----------------------------------------------------------------------------------------------------+
+type:top
+===EOF===
+╠──────────────────────────────────────────────────────────────────────────────────────────────────╣
+║-----------------------------------------0x01-Introduction-----------------------------------------║
+╠──────────────────────────────────────────────────────────────────────────────────────────────────╣
+type:bottom
+===EOF===
+╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
+type:bottom
+===EOF===
++----------------------------------------------------------------------------------------------------+
+type:bottom
+===EOF===
+
+[[pool: stamps]]
+   *
+  /|\
+ /_|_\
+   |
+type:art
+===EOF===
+  .-.
+ (   )
+  `-'
+type:art
+===EOF===
+  __
+ /  \
+ |[]|
+_|__|_
+type:art
+===EOF===
+ \o/
+  |
+ / \
+type:art
+===EOF===
+ ___
+( o )
+ \_/
+type:art
+===EOF===
+
+[[pool: templates]]
+// header bar + four columns
+style: double
+width: 78
+cols: equal
+header: {{title}} | ▓▓
+row: {{col1}}\n- item\n- item | {{col2}}\n- item\n- item | {{col3}}\n- item | {{col4}}\n- item
+type:Table
+===EOF===
+// header bar · sections with dashed lines on the left · one particle field on the right
+table main
+style: single
+width: 110
+cols: auto, 50
+header: {{title}} | ▓▓
+row: #sections | ~50x30
+
+table sections
+style: single
+border: none
+width: 56
+row: {{section1}}\n\n
+- - -
+row: {{section2}}\n\n
+- - -
+row: {{section3}}\n
+- - -
+row: {{section4}}\n
+- - -
+row: {{section5}}\n\n\n
+- - -
+row: {{section6}}\n\n
+- - -
+row: {{section7}}\n\n
+- - -
+row: {{section8}}\n\n
+type:Frame with particles
+===EOF===
+// big double frame: a title bar, then an empty page
+style: double
+width: 121
+bar: {{title}}▓ |    {{title2}}
+---
+row: {{body}}\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n
+type:Frame
+===EOF===
+
+[[pool: combos]]
+#ff3b00 #ff7a00 #ffb300 #ffd84d
+type:fire
+===EOF===
+#e0f7ff #8fd3ff #3fa9f5 #1f6fd1
+type:ice
+===EOF===
+#39ff14 #8cff00 #00ff9c #c6ff00
+type:toxic
+===EOF===
+#ff5f6d #ff8a5c #ffc371 #c06c84
+type:sunset
+===EOF===
+#ff0000 #ff8000 #ffff00 #00c000 #0080ff #8000ff
+type:rainbow
+===EOF===
+#ff00e6 #00e5ff #fff200
+type:neon
+===EOF===
+#ffd700 #f5c542 #e6a817 #fff3b0
+type:gold
+===EOF===
+#00ff41 #00c832 #008f11
+type:matrix
+===EOF===
+#ffffff #cfcfcf #9a9a9a
+type:silver
 ===EOF===
