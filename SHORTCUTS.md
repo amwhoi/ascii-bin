@@ -9,10 +9,28 @@ On a Mac, use ⌘ where it says Ctrl. Ctrl + Z and Ctrl + V go by key position, 
 
 | Keys | What it does |
 |---|---|
+| Click past the end of a line, or below the paste | The cursor lands right there; the spaces and lines it needs are added for you (unused ones are removed again when you click elsewhere) |
+| Insert | **Grid mode** on / off (also the ⊞ Grid button on the Draw bar) |
 | Ctrl + Enter | **Split here**: the line with the cursor and the lines below it become a new block of the same type |
 | Ctrl + Z | **Undo**, including everything the tools did. Other input fields keep their own undo |
 | Alt + ← → ↑ ↓ | Move the target block 1 column or line while the cursor is in the editor (plain arrows move the cursor) |
 | Alt + Shift + ← → ↑ ↓ | The same, 4 columns or lines at a time |
+
+### Grid mode (⊞ Grid, or Insert)
+
+For changing single characters inside art: nothing is pushed along, and there is always room to the right and below.
+
+| Keys | What it does |
+|---|---|
+| Typing | Replaces the character under the cursor, then moves right |
+| Backspace | Moves left and blanks that cell |
+| Delete | Blanks the cell under the cursor |
+| Enter | One line down, same column (the line isn't split) |
+| Ctrl + V | Pastes over the text as a block from the cursor |
+| Select + Delete / Backspace | Blanks the selected characters |
+| End | To the end of the line's text |
+
+Overwritten cells keep their colour, new lines below the paste join the block above, and copies leave the padding out.
 
 ### Moving a block (nothing selected)
 
